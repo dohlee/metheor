@@ -1,0 +1,79 @@
+name: metheor
+version: 0.0.1
+author: Dohoon Lee. <dohlee.bioinfo@gmail.com>
+about: Summarizes the heterogeneity of DNA methylation states using BAM files.
+
+subcommands:
+    - pdr:
+        # about: Compute proportion of discordant reads (PDR).
+        version: "0.0.1"
+        author: Dohoon Lee. <dohlee.bioinfo@gmail.com>
+        args:
+            - input:
+                short: i
+                long: input
+                required: true
+                takes_value: true
+                # about: Input BAM file.
+            - output:
+                short: o
+                long: output
+                required: true
+                takes_value: true
+                # about: Output csv file.
+            - min_cpgs:
+                short: c
+                long: min-cpgs
+                takes_value: true
+                default_value: "4"
+            - min_depth:
+                short: d
+                long: min-depth
+                takes_value: true
+                default_value: "10"
+                # about: Minimum depth.
+    - pm:
+        about: Compute epipolymorphism.
+        version: "0.0.1"
+        author: Dohoon Lee. <dohlee.bioinfo@gmail.com>
+        args:
+            - input:
+                short: i
+                long: input
+                required: true
+                takes_value: true
+                # about: Input BAM file.
+            - output:
+                short: o
+                long: output
+                required: true
+                takes_value: true
+                # about: Output csv file.
+            - min_depth:
+                short: d
+                long: min-depth
+                takes_value: true
+                default_value: "10"
+    - me:
+        about: Compute methylation entropy.
+        version: "0.0.1"
+        author: Dohoon Lee. <dohlee.bioinfo@gmail.com>
+        args:
+            - input:
+                short: i
+                long: input
+                required: true
+                takes_value: true
+                # about: Input BAM file.
+            - output:
+                short: o
+                long: output
+                required: true
+                takes_value: true
+                # about: Output csv file.
+            - min_depth:
+                short: d
+                long: min-depth
+                takes_value: true
+                default_value: "10"
+        
