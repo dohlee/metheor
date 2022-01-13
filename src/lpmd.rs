@@ -1,6 +1,7 @@
 use rust_htslib::{bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux}};
 use bio_types::genome::AbstractInterval;
 use std::fs;
+use std::io::Write;
 use std::vec::Vec;
 use std::str;
 
@@ -37,28 +38,34 @@ fn compute_all(input: &str, output: &str, min_distance: i32, max_distance: i32, 
     );
 
     for r in reader.records() {
-        let r = r.unwrap();
+        let mut r = r.unwrap();
 
         readcount += 1;
         if r.mapq() < min_qual { continue; }
-        
+        r.cache_cigar();
+
         match r.aux(b"XM") {
             Ok(value) => {
                 if let Aux::String(xm) = value {
                     valid_readcount += 1;
 
-
                     let mut cpgs: Vec<(i32, char)> = Vec::new();
-                    for (pos, c) in r.range().zip(xm.chars()) {
+                    for (pos, c) in r.reference_positions_full().zip(xm.chars()) {
                         
                         if (c != 'z') && (c != 'Z') {
                             continue;
                         }
-                        
-                        if (r.flags() == 99) || (r.flags() == 147) { // Forward
-                            cpgs.push((pos as i32, c));
-                        } else {
-                            cpgs.push(((pos - 1)as i32, c));
+
+                        match pos {
+                            Some(pos) => {
+                                if (r.flags() == 99) || (r.flags() == 147) { // Forward
+                                    cpgs.push((pos as i32, c));
+                                } else {
+                                    cpgs.push(((pos - 1) as i32, c));
+                                }
+                            },
+                            None => {}
+
                         }
                     }
 
@@ -75,15 +82,25 @@ fn compute_all(input: &str, output: &str, min_distance: i32, max_distance: i32, 
     
         readcount += 1;
         if readcount % 10000 == 0 {
+            let lpmd: f32 = (n_discordant as f32) / ((n_concordant + n_discordant) as f32);
             bar.inc_length(10000);
             bar.inc(10000);
-            bar.set_message(format!("Processed {} reads, found {} valid reads.", readcount, valid_readcount));
+            bar.set_message(format!("Processed {} reads, found {} valid reads. LPMD = {:.4} ({}/{})", readcount, valid_readcount, lpmd, n_discordant, n_concordant + n_discordant));
         }
     }
 
-    println!("{} {} {}", n_concordant, n_discordant, n_discordant / (n_concordant + n_discordant));
-    println!("{} {} {}", n_concordant, n_discordant, n_discordant / (n_concordant + n_discordant));
-    println!("{} valid reads.", valid_readcount);
+    let lpmd: f32 = (n_discordant as f32) / ((n_concordant + n_discordant) as f32);
+    bar.finish_with_message(format!("Processed {} reads, found {} valid reads. LPMD = {:.4} ({}/{}). Done in {:?}s", readcount, valid_readcount, lpmd, n_discordant, n_concordant + n_discordant, bar.elapsed()));
+
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+
+    write!(out, "name\tlpmd\n")
+        .ok()
+        .expect("Error writing to output file.");
+
+    write!(out, "{}\t{}\n", input, lpmd)
+        .ok()
+        .expect("Error writing to output file.");
 
     (n_concordant, n_discordant)
 }
@@ -91,13 +108,11 @@ fn compute_all(input: &str, output: &str, min_distance: i32, max_distance: i32, 
 fn compute_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, cpg_set: &str, min_qual: u8) -> (i32, i32) {
     println!("Computing subset-LPMD with parameters input={}, output={}, min_distance={}, max_distance={}", input, output, min_distance, max_distance);
 
-    println!("Processing target CpG set...");
+    print!("Processing target CpG set... ");
     let mut target_cpgs: HashSet<(&str, i32)> = HashSet::new();
 
     let contents = fs::read_to_string(cpg_set)
                     .expect("Could not read target CpG file.");
-
-    println!("{}", cpg_set);
 
     for line in contents.lines() {
         let tokens: Vec<&str> = line.split("\t").collect();
@@ -108,7 +123,7 @@ fn compute_subset(input: &str, output: &str, min_distance: i32, max_distance: i3
         target_cpgs.insert((chrom, pos));
     }
 
-    println!("Processed {} CpGs in total.", target_cpgs.len());
+    println!("Analyzing {} CpGs in total.", target_cpgs.len());
 
 
     let mut reader = bamutil::get_reader(&input);
@@ -134,7 +149,6 @@ fn compute_subset(input: &str, output: &str, min_distance: i32, max_distance: i3
         readcount += 1;
         if r.mapq() < min_qual { continue; }
 
-
         r.cache_cigar();
 
         let tid: i32 = r.tid();
@@ -154,7 +168,6 @@ fn compute_subset(input: &str, output: &str, min_distance: i32, max_distance: i3
         match r.aux(b"XM") {
             Ok(value) => {
                 if let Aux::String(xm) = value {
-
                     // println!("{}", r.flags());
 
                     let mut cpgs: Vec<(i32, char)> = Vec::new();
@@ -196,20 +209,25 @@ fn compute_subset(input: &str, output: &str, min_distance: i32, max_distance: i3
         }
     
         if readcount % 10000 == 0 {
+            let lpmd: f32 = (n_discordant as f32) / ((n_concordant + n_discordant) as f32);
             bar.inc_length(10000);
             bar.inc(10000);
-            bar.set_message(format!("Processed {} reads, found {} valid reads. ({}, {})", readcount, valid_readcount, n_concordant, n_discordant));
+            bar.set_message(format!("Processed {} reads, found {} valid reads. LPMD = {:.4} ({}/{})", readcount, valid_readcount, lpmd, n_discordant, n_concordant + n_discordant));
         }
     }
 
-    println!("{} {}", n_concordant, n_discordant);
-    println!("{} {}", n_concordant, n_discordant);
-    println!("{} valid reads.", valid_readcount);
-    println!("{} {} (F, R)", n_forward, n_reverse);
-    println!("{} valid reads.", valid_readcount);
+    let lpmd: f32 = (n_discordant as f32) / ((n_concordant + n_discordant) as f32);
+    bar.finish_with_message(format!("Processed {} reads, found {} valid reads. LPMD = {:.4} ({}/{}). Done in {:?}s", readcount, valid_readcount, lpmd, n_discordant, n_concordant + n_discordant, bar.elapsed()));
 
-    println!("{:?}", flag_counter);
-    println!("{:?}", flag_counter);
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+
+    write!(out, "name\tlpmd\n")
+        .ok()
+        .expect("Error writing to output file.");
+
+    write!(out, "{}\t{}\n", input, lpmd)
+        .ok()
+        .expect("Error writing to output file.");
 
     (n_concordant, n_discordant)
 }

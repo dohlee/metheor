@@ -66,6 +66,7 @@ pub enum Commands {
         #[clap(long, short='d', default_value_t=10)]
         min_depth: i32,
     },
+    /// Compute local pairwise methylation discordance (LPMD)
     Lpmd {
         /// Input BAM file.
         #[clap(long, short='i', required=true)]

@@ -143,7 +143,7 @@ pub fn compute(input: &str, output: &str, min_depth: i32) {
                 .ok()
                 .expect("Error parsing chromosome name.");
 
-            write!(out, "{}\t{}\t{}\t{}\t{}\t{}\n", chrom, c1, c2, c3, c4, pm)
+                write!(out, "{}\t{}\t{}\t{}\t{}\t{}\n", chrom, c1, c2, c3, c4, pm)
                 .ok()
                 .expect("Error writing to output file.");
         }
