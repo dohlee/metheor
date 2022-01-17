@@ -1,6 +1,4 @@
 
-
-
 struct CpGState {
     pos: i32,
     methylated: bool
@@ -22,7 +20,7 @@ pub fn count_z(meth_str: &str) -> i32 {
     (meth_str.matches("z").count() + meth_str.matches("Z").count()) as i32
 }
 
-pub fn compute_pairwise_concordance_discordance(cpgs: Vec<(i32, char)>, min_distance: i32, max_distance: i32) -> (i32, i32) {
+pub fn compute_pairwise_concordance_discordance_from_read(cpgs: Vec<(i32, char)>, min_distance: i32, max_distance: i32) -> (i32, i32) {
     let mut anchors: Vec<CpGState> = Vec::new();
     let mut min_anchor_pos = -1;
     let mut n_concordant = 0;
@@ -73,7 +71,7 @@ mod tests {
         let min_distance = 2;
         let max_distance = 16;
         let tmp_cpgs: Vec<(i32, char)> = Vec::from([(2, 'z'), (100, 'z')]);
-        let (n_con, n_dis) = compute_pairwise_concordance_discordance(tmp_cpgs, min_distance, max_distance);
+        let (n_con, n_dis) = compute_pairwise_concordance_discordance_from_read(tmp_cpgs, min_distance, max_distance);
 
         assert_eq!(n_con, 0);
         assert_eq!(n_dis, 0);
@@ -84,7 +82,7 @@ mod tests {
         let min_distance = 2;
         let max_distance = 16;
         let tmp_cpgs: Vec<(i32, char)> = Vec::from([(2, 'z'), (8, 'Z'), (20, 'z'), (32, 'z'), (34, 'z'), (100, 'Z'), (116, 'z')]);
-        let (n_con, n_dis) = compute_pairwise_concordance_discordance(tmp_cpgs, min_distance, max_distance);
+        let (n_con, n_dis) = compute_pairwise_concordance_discordance_from_read(tmp_cpgs, min_distance, max_distance);
 
         assert_eq!(n_con, 3);
         assert_eq!(n_dis, 3);

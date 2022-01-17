@@ -3,6 +3,8 @@ use std::str;
 use clap::{AppSettings, Parser, Subcommand};
 
 pub mod readutil;
+pub mod bamutil;
+pub mod lpmd;
 
 /// Summarizes the heterogeneity of DNA methylation states using BAM files.
 #[derive(Parser)]
@@ -67,7 +69,7 @@ pub enum Commands {
         #[clap(long, short='d', default_value_t=10)]
         min_depth: i32,
     },
-    /// Compute local pairwise methylation discordance (LPMD)
+    /// Compute local pairwise methylation discordance (LPMD).
     Lpmd {
         /// Input BAM file.
         #[clap(long, short='i', required=true)]
@@ -77,11 +79,11 @@ pub enum Commands {
         #[clap(long, short='o', required=true)]
         output: String,
 
-        /// Minimum depth of CpG quartets to consider
+        /// Minimum distance between CpG pairs to consider.
         #[clap(long, short='m', default_value_t=2)]
         min_distance: i32,
 
-        /// Minimum depth of CpG quartets to consider
+        /// Maximum distance between CpG pairs to consider.
         #[clap(long, short='M', default_value_t=16)]
         max_distance: i32,
 
@@ -90,7 +92,7 @@ pub enum Commands {
         cpg_set: String,
         
         /// Minimum quality for a read to be considered.
-        #[clap(long, short='c', default_value_t=10)]
+        #[clap(long, short='q', default_value_t=10)]
         min_qual: u8,
     }
 }
