@@ -1,0 +1,24 @@
+{% set version = "0.0.3" %}
+
+package:
+    name: metheor
+    version: {{ version }}
+
+source:
+    git_url: https://github.com/dohlee/metheor
+
+requirements:
+    build:
+        - {{ compiler('c') }}
+        - {{ compiler('cxx') }}
+        - rust
+        - clangdev
+        - pkg-config
+        - make
+        - cmake
+
+    run:
+        - rust
+
+about:
+    home: https://github.com/dohlee/metheor
