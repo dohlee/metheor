@@ -80,7 +80,6 @@ fn compute_all(input: &str, output: &str, min_distance: i32, max_distance: i32, 
             }
         }
     
-        readcount += 1;
         if readcount % 10000 == 0 {
             let lpmd: f32 = (n_discordant as f32) / ((n_concordant + n_discordant) as f32);
             bar.inc_length(10000);
