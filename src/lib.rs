@@ -8,6 +8,7 @@ pub mod readutil;
 #[derive(Parser)]
 #[clap(name = "metheor")]
 #[clap(about = "Summarizes the heterogeneity of DNA methylation states using BAM files.")]
+#[clap(version = "0.0.3")]
 #[clap(author = "Dohoon Lee. <dohlee.bioinfo@gmail.com>")]
 pub struct Cli {
     #[clap(subcommand)]
