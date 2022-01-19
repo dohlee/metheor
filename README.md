@@ -10,3 +10,23 @@ Install with `conda`.
 $ conda install -c dohlee metheor
 ```
 
+## Usage
+
+### Local pairwise methylation disorder (LPMD)
+```
+$ metheor lpmd --input <INPUT> --output <OUTPUT> [OPTIONS]
+```
+
+*Options*
+
+`-i, --input`: Path to input BAM file.
+
+`-o, --output`: Path to output table file summarizing the result of LPMD calculation.
+
+`-m, --min-distance`:
+
+`-M, --max-distance`:
+
+`-c, --cpg-set`:
+
+`-q, --min-qual`:
