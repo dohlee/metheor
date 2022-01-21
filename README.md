@@ -25,7 +25,7 @@ $ metheor me --input <INPUT> --output <OUTPUT>
 ### Proportion of discordant reads (PDR)
 
 ```
-$ metheor pdr --input <INPUT> --output <OUTPUT>
+$ metheor pdr --input <INPUT> > <OUTPUT>
 ```
 
 ### Local pairwise methylation disorder (LPMD)
