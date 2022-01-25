@@ -1,4 +1,5 @@
 use rust_htslib::{bam, bam::Read};
+use std::str;
 
 pub fn get_reader(input: &str) -> bam::Reader {
     let reader = bam::Reader::from_path(&input)
@@ -9,7 +10,12 @@ pub fn get_reader(input: &str) -> bam::Reader {
 }
 
 pub fn get_header(reader: &bam::Reader) -> bam::HeaderView {
-    let header = bam::HeaderView::from_header(&bam::Header::from_template(reader.header()));
+    bam::HeaderView::from_header(&bam::Header::from_template(reader.header()))
+}
 
-    header
+pub fn tid2chrom(tid: i32, header: &bam::HeaderView) -> String {
+    str::from_utf8(header.tid2name(tid as u32))
+        .ok()
+        .expect("Error parsing chromosome name.")
+        .to_string()
 }

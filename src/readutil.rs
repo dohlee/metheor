@@ -1,17 +1,19 @@
-use rust_htslib::{bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
+use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
 
 use std::collections::{HashSet};
 use std::fmt;
+use std::cmp::Ordering;
+
+use crate::bamutil;
 
 pub struct BismarkRead {
     // Read is defined as an array of CpG methylation states
     // and their relative/absolute positions.
-    cpgs: Vec<CpG>
+    cpgs: Vec<CpG>,
 }
 
 impl BismarkRead {
     pub fn new(r: &Record) -> Self {
-        
         match r.aux(b"XM") {
             Ok(value) => {
                 if let Aux::String(xm) = value {  // if value is a type of Aux::String, run:
@@ -64,8 +66,8 @@ pub enum ReadConcordanceState {
 
 #[derive(Eq, Hash, Copy)]
 pub struct CpGPosition {
-    tid: i32,
-    pos: i32,
+    pub tid: i32,
+    pub pos: i32,
 }
 
 impl CpGPosition {
@@ -83,6 +85,18 @@ impl fmt::Display for CpGPosition {
 impl PartialEq for CpGPosition {
     fn eq(&self, other: &Self) -> bool {
         (self.tid == other.tid) && (self.pos == other.pos)
+    }
+}
+
+impl PartialOrd for CpGPosition {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for CpGPosition {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.tid.cmp(&other.tid).then(self.pos.cmp(&other.pos))
     }
 }
 
@@ -120,10 +134,10 @@ fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
         match abspos {
             Some(abspos) => {
                 if (r.flags() == 99) || (r.flags() == 147) { // Forward
-                    let cpgpos = CpGPosition::new(r.tid() as i32, abspos as i32);
+                    let cpgpos = CpGPosition::new(r.tid(), abspos as i32);
                     cpgs.push(CpG::new(relpos as i32, cpgpos, c));
                 } else {
-                    let cpgpos = CpGPosition::new(r.tid() as i32, (abspos - 1) as i32);
+                    let cpgpos = CpGPosition::new(r.tid(), (abspos - 1) as i32);
                     cpgs.push(CpG::new(relpos as i32, cpgpos, c));
                 }
             },
@@ -252,5 +266,28 @@ mod tests {
 
         assert_eq!(n_read, 16);
         assert_eq!(n_discordant_read, 14);
+    }
+
+    #[test]
+    fn test_cpgposition_eq() {
+        let pos1 = CpGPosition { tid: 0, pos: 1 };
+        let pos2 = CpGPosition { tid: 0, pos: 1 };
+        let pos3 = CpGPosition { tid: 0, pos: 2 };
+
+        assert_eq!(pos1 == pos2, true);
+        assert_eq!(pos1 != pos3, true);
+    }
+
+    #[test]
+    fn test_cpgposition_ordering() {
+        let pos1 = CpGPosition { tid: 0, pos: 1 };
+        let pos2 = CpGPosition { tid: 0, pos: 1 };
+        let pos3 = CpGPosition { tid: 0, pos: 2 };
+
+        assert_eq!(pos1 <= pos2, true);
+        assert_eq!(pos1 >= pos2, true);
+
+        assert_eq!(pos1 < pos3, true);
+        assert_eq!(pos1 > pos3, false);
     }
 }

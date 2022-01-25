@@ -11,8 +11,8 @@ fn main() {
     let args = metheor::Cli::parse();
 
     match &args.command {
-        metheor::Commands::Pdr { input, output, min_depth, min_cpgs } => {
-            pdr::compute(input, output, *min_depth, *min_cpgs);
+        metheor::Commands::Pdr { input, output, min_depth, min_cpgs, min_qual } => {
+            pdr::compute(input, output, *min_depth, *min_cpgs, *min_qual);
         }
         metheor::Commands::Pm { input, output, min_depth } => {
             pm::compute(input, output, *min_depth);

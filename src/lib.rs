@@ -32,12 +32,15 @@ pub enum Commands {
 
         /// Minimum depth of CpG stretches to consider.
         #[clap(long, short='d', default_value_t=10)]
-        min_depth: i32,
+        min_depth: u32,
 
         /// Minimum number of consecutive CpGs in a CpG stretch to consider.
         #[clap(long, short='c', default_value_t=10)]
         min_cpgs: i32,
 
+        /// Minimum quality for a read to be considered.
+        #[clap(long, short='q', default_value_t=10)]
+        min_qual: u8,
     },
     /// Compute epipolymorphism.
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]

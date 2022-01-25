@@ -1,8 +1,9 @@
-use rust_htslib::{bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux}};
+use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux}};
 use std::fs::OpenOptions;
 use std::vec::Vec;
 use std::str;
 use std::fmt;
+use std::cmp::Ordering;
 use std::io::Write;
 use std::collections::{BTreeSet, HashMap};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -10,6 +11,7 @@ use interval_tree::IntervalTree;
 
 use crate::{readutil, bamutil};
 
+#[derive(Eq)]
 struct PDRResult {
     pos: readutil::CpGPosition,
     n_concordant: u32,
@@ -21,12 +23,16 @@ impl PDRResult {
         Self{ pos: pos, n_concordant: 0, n_discordant: 0 }
     }
 
-    fn inc_concordant(&mut self) {
-        self.n_concordant += 1;
-    }
+    fn inc_concordant(&mut self) { self.n_concordant += 1; }
 
-    fn inc_discordant(&mut self) {
-        self.n_discordant += 1;
+    fn inc_discordant(&mut self) { self.n_discordant += 1; }
+
+    fn get_coverage(&self) -> u32 { self.n_concordant + self.n_discordant }
+
+    fn to_bedgraph_field(&self, header: &bam::HeaderView) -> String {
+        let chrom = bamutil::tid2chrom(self.pos.tid, header);
+        let pdr = (self.n_discordant as f32) / (self.n_concordant as f32 + self.n_discordant as f32);
+        format!("{}\t{}\t{}\t{}\t{}\t{}", chrom, self.pos.pos, self.pos.pos + 2, pdr, self.n_concordant, self.n_discordant)
     }
 }
 
@@ -37,32 +43,65 @@ impl fmt::Display for PDRResult {
     }
 }
 
-pub fn compute(input: &str, output: &str, min_cpgs: i32, min_depth: i32) {
+impl PartialEq for PDRResult {
+    fn eq(&self, other: &Self) -> bool { self.pos == other.pos }
+}
+
+impl PartialOrd for PDRResult {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(&other)) }
+}
+
+impl Ord for PDRResult {
+    fn cmp(&self, other: &Self) -> Ordering { self.pos.cmp(&other.pos) }
+}
+
+pub fn compute(input: &str, output: &str, min_depth: u32, min_cpgs: i32, min_qual: u8) {
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
     let mut pdr_result: HashMap<readutil::CpGPosition, PDRResult> = HashMap::new();
 
+    let bar = ProgressBar::new(1);
+    let mut readcount = 0;
+    let mut valid_readcount = 0;
+    bar.set_style(ProgressStyle::default_bar()
+        .template("{spinner} {elapsed_precise} {msg}")
+    );
+
     for r in reader.records() {
         let mut r = r.unwrap();
         let br = readutil::BismarkRead::new(&r);
+
+        readcount += 1;
+        if r.mapq() < min_qual { continue; } // Read filtering: Minimum quality should be >= min_qual.
 
         let mut cpg_positions = br.get_cpg_positions();
         if cpg_positions.len() == 0 { continue; }
 
         for cpg_position in cpg_positions.iter_mut() {
             let mut r = pdr_result.entry(*cpg_position)
-                            .or_insert(PDRResult{ pos:*cpg_position, n_concordant: 0, n_discordant: 0 });
+                            .or_insert(PDRResult::new(*cpg_position));
             
             match br.get_concordance_state() {
                 readutil::ReadConcordanceState::Concordant => r.inc_concordant(),
                 readutil::ReadConcordanceState::Discordant => r.inc_discordant(),
             }
         }
+        
+        valid_readcount += 1;
+        if readcount % 10000 == 0 {
+            bar.inc_length(10000);
+            bar.inc(10000);
+            bar.set_message(format!("Processed {} reads, found {} valid reads.", readcount, valid_readcount));
+        }
     }
+    
+    let mut sorted_result: Vec<&PDRResult> = pdr_result.values().collect::<Vec<&PDRResult>>();
+    // sorted_result.sort();
 
-    for (pos, r) in &pdr_result {
-        println!("{}", r);
+    for r in sorted_result {
+        if r.get_coverage() < min_depth { continue; } // Output filtering: CpG coverage should be >= min_depth.
+        println!("{}", r.to_bedgraph_field(&header));
     }
 }
 
@@ -172,10 +211,11 @@ pub fn compute_old(input: &str, output: &str, min_cpgs: i32, min_depth: i32) {
 
         if n_c + n_d >= (min_depth as f64) { // Skip CpGs covered by insufficient reads.
             let pdr: f64 = n_d / (n_c + n_d);
-
-            let chrom = str::from_utf8(header.tid2name(tid as u32))
-                .ok()
-                .expect("Error parsing chromosome name.");
+            
+            let chrom = bamutil::tid2chrom(tid, &header);
+            // let chrom = str::from_utf8(header.tid2name(tid as u32))
+                // .ok()
+                // .expect("Error parsing chromosome name.");
 
             write!(out, "{}\t{}\t{}\t{}\n", chrom, start, end, pdr)
                 .ok()
