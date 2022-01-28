@@ -6,6 +6,7 @@ mod me;
 mod lpmd;
 mod bamutil;
 mod readutil;
+mod progressbar;
 
 fn main() {
     let args = metheor::Cli::parse();

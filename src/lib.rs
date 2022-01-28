@@ -4,6 +4,7 @@ use clap::{AppSettings, Parser, Subcommand};
 
 pub mod readutil;
 pub mod bamutil;
+pub mod progressbar;
 pub mod lpmd;
 
 /// Summarizes the heterogeneity of DNA methylation states using BAM files.

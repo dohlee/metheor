@@ -1,4 +1,4 @@
-use rust_htslib::{bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
+use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
 use bio_types::genome::AbstractInterval;
 use std::fs;
 use std::io::Write;
@@ -8,26 +8,35 @@ use std::str;
 use std::collections::{HashSet, HashMap};
 use indicatif::{ProgressBar, ProgressStyle, HumanDuration};
 
-use crate::{readutil, bamutil};
+use crate::{readutil, bamutil, progressbar};
 
 pub struct LPMDResult {
+    header: bam::HeaderView,
     n_read: i32,
     n_valid_read: i32,
     n_forward: i32,
     n_reverse: i32,
     n_concordant: i32,
     n_discordant: i32,
+    pair2n_concordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32>,
+    pair2n_discordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32>,
 }
 
 impl LPMDResult {
-    fn new() -> Self {
+    fn new(header: bam::HeaderView) -> Self {
+        let pair2n_concordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32> = HashMap::new();
+        let pair2n_discordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32> = HashMap::new();
+
         Self {
+            header: header,
             n_read: 0,
             n_valid_read: 0,
             n_forward: 0,
             n_reverse: 0,
             n_concordant: 0,
             n_discordant: 0,
+            pair2n_concordant: pair2n_concordant,
+            pair2n_discordant: pair2n_discordant,
         }
     }
 
@@ -73,6 +82,43 @@ impl LPMDResult {
         format!("Processed {} reads, found {} valid reads. LPMD={:.4} ({}/{}). Done in {}", 
             self.n_read, self.n_valid_read, lpmd, self.n_discordant, self.n_concordant + self.n_discordant, t)
     }
+
+    fn add_pair_concordance(&mut self, pos1: &readutil::CpGPosition, pos2: &readutil::CpGPosition, concordance: &readutil::ReadConcordanceState) {
+        
+        let n_concordant = self.pair2n_concordant.entry((*pos1, *pos2)).or_insert(0);
+        let n_discordant = self.pair2n_discordant.entry((*pos1, *pos2)).or_insert(0);
+
+        match concordance {
+            readutil::ReadConcordanceState::Concordant => {
+                *n_concordant += 1;
+            }
+            readutil::ReadConcordanceState::Discordant => {
+                *n_discordant += 1;
+            }
+        }
+    }
+
+    fn print_pair_statistics(&self) {
+        let mut pairs: Vec<&(readutil::CpGPosition, readutil::CpGPosition)> = self.pair2n_concordant.keys().collect::<Vec<&(readutil::CpGPosition, readutil::CpGPosition)>>();
+        pairs.sort();
+
+        let mut c = 0;
+        let mut d = 0;
+
+        for (cpg1, cpg2) in pairs {
+
+            let k = (*cpg1, *cpg2);
+            let n_concordant = self.pair2n_concordant[&k];
+            let n_discordant = self.pair2n_discordant[&k];
+            let lpmd = (n_discordant as f32) / (n_concordant as f32 + n_discordant as f32);
+
+            c += n_concordant;
+            d += n_discordant;
+
+            let chrom = bamutil::tid2chrom(cpg1.tid, &self.header);
+            println!("{}\t{}\t{}\t{}\t{}\t{}", chrom, cpg1.pos, cpg2.pos, lpmd, n_concordant, n_discordant);
+        }
+    }
 }
 
 pub fn compute(input: &str, output: &str, min_distance: i32, max_distance: i32, cpg_set: &str, min_qual: u8) -> LPMDResult {
@@ -88,6 +134,7 @@ fn run_all(input: &str, output: &str, min_distance: i32, max_distance: i32, min_
     println!("Computing LPMD with parameters input={}, output={}, min_distance={}, max_distance={}", input, output, min_distance, max_distance);
 
     let res = compute_all(input, min_distance, max_distance, min_qual);
+    res.print_pair_statistics();
 
     let lpmd: f32 = res.compute_lpmd();
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
@@ -123,67 +170,31 @@ fn run_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, c
 
     println!("Analyzing {} CpGs in total.", target_cpgs.len());
 
-    let mut res = LPMDResult::new();
-
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
+    let mut res = LPMDResult::new(header);
 
     let mut flag_counter: HashMap<u16, i32> = HashMap::new();
 
-    let bar = ProgressBar::new(1);
-    bar.set_style(ProgressStyle::default_bar()
-        .template("{spinner} {elapsed_precise} {msg}")
-    );
+    let bar = progressbar::ProgressBar::new();
 
     // Iterate over reads and compute LPMD.
-    for r in reader.records() {
-        let mut r = r.unwrap();
-
+    for r in reader.records().map(|r| r.unwrap()) {
         res.inc_n_read(1);
         if r.mapq() < min_qual { continue; }
 
-        r.cache_cigar();
+        let br = readutil::BismarkRead::new(&r);
+        let (c, d, pair2concordance) = br.compute_pairwise_cpg_concordance_discordance(min_distance, max_distance);
 
-        let tid: i32 = r.tid();
-        let chrom = str::from_utf8(header.tid2name(tid as u32))
-            .ok()
-            .expect("Error parsing chromosome name.");
-
-        // if (r.flags() == 99) || (r.flags() == 147) { // Forward
-        //     res.inc_n_forward(1);
-        // } else {
-        //     res.inc_n_reverse(1);
-        // }
-
-        // let v = flag_counter.entry(r.flags()).or_insert(0);
-        // *v += 1;
-        
-        match r.aux(b"XM") {
-            Ok(value) => {
-                if let Aux::String(xm) = value {
-                    // println!("{}", r.flags());
-                    
-                    let cpgs = get_subset_cpgs_in_read(&r, xm, chrom, &target_cpgs);
-                    let (c, d) = readutil::compute_pairwise_concordance_discordance_from_read(cpgs, min_distance, max_distance);
-
-                    res.inc_n_valid_read(1);
-                    res.inc_n_concordant(c);
-                    res.inc_n_discordant(d);
-                }
-            }
-            Err(_) => {
-                panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
-            }
+        res.inc_n_valid_read(1);
+        res.inc_n_concordant(c);
+        res.inc_n_discordant(d);
+        for (cpg1, cpg2, concordance) in &pair2concordance {
+            res.add_pair_concordance(cpg1, cpg2, concordance);
         }
     
-        if res.n_read % 10000 == 0 {
-            bar.inc_length(10000);
-            bar.inc(10000);
-            bar.set_message(res.progress_string());
-        }
+        if res.n_read % 10000 == 0 { bar.update_lpmd(res.progress_string()); }
     }
-
-    bar.finish_with_message(res.done_string(HumanDuration(bar.elapsed())));
 
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
     let lpmd = res.compute_lpmd();
@@ -196,53 +207,38 @@ fn run_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, c
         .ok()
         .expect("Error writing to output file.");
 
-    // (n_concordant, n_discordant)
     res
 }
 
 
 fn compute_all(input: &str, min_distance: i32, max_distance: i32, min_qual: u8) -> LPMDResult {
     let mut reader = bamutil::get_reader(&input);
+    let header = bamutil::get_header(&reader);
+    let mut res = LPMDResult::new(header);
 
-    let mut res = LPMDResult::new();
+    let bar = progressbar::ProgressBar::new();
 
-    let bar = ProgressBar::new(1);
-    bar.set_style(ProgressStyle::default_bar()
-        .template("{spinner} {elapsed_precise} {msg}")
-    );
-
-    for r in reader.records() {
-        let mut r = r.unwrap();
-
+    for r in reader.records().map(|r| r.unwrap()) {
         res.inc_n_read(1);
         if r.mapq() < min_qual { continue; }
-        r.cache_cigar();
 
-        match r.aux(b"XM") {
-            Ok(value) => {
-                if let Aux::String(xm) = value {
+        let br = readutil::BismarkRead::new(&r);
+        let (c, d, pair2concordance) = br.compute_pairwise_cpg_concordance_discordance(min_distance, max_distance);
+        
 
-                    let cpgs = get_all_cpgs_in_read(&r, xm);
-                    let (c, d) = readutil::compute_pairwise_concordance_discordance_from_read(cpgs, min_distance, max_distance);
-
-                    res.inc_n_valid_read(1);
-                    res.inc_n_concordant(c);
-                    res.inc_n_discordant(d);
-                }
-            }
-            Err(_) => {
-                panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
-            }
+        res.inc_n_valid_read(1);
+        res.inc_n_concordant(c);
+        res.inc_n_discordant(d);
+        for (cpg1, cpg2, concordance) in &pair2concordance {
+            res.add_pair_concordance(cpg1, cpg2, concordance);
         }
-    
+
         if res.n_read % 10000 == 0 {
-            bar.inc_length(10000);
-            bar.inc(10000);
-            bar.set_message(res.progress_string());
+            bar.update_lpmd(res.progress_string());
         }
     }
 
-    bar.finish_with_message(res.done_string(HumanDuration(bar.elapsed())));
+    // bar.finish_with_message(res.done_string(HumanDuration(bar.elapsed())));
 
     res
 }
