@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 use std::io::Write;
 use std::collections::{BTreeSet, HashMap};
 use indicatif::{ProgressBar, ProgressStyle};
-use interval_tree::IntervalTree;
+// use interval_tree::IntervalTree;
 
 use crate::{readutil, bamutil, progressbar};
 

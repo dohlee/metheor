@@ -18,8 +18,7 @@ impl BismarkRead {
             Ok(value) => {
                 if let Aux::String(xm) = value {  // if value is a type of Aux::String, run:
                     let cpgs = get_cpgs(r, xm);
-
-                    Self { cpgs: cpgs }
+                    Self { cpgs }
                 } else {
                     panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
                 }
@@ -36,9 +35,7 @@ impl BismarkRead {
 
     pub fn get_cpg_positions(&self) -> Vec<CpGPosition> {
         let mut s: Vec<CpGPosition> = Vec::new();
-        for cpg in &self.cpgs {
-            s.push(cpg.abspos);
-        }
+        for cpg in &self.cpgs { s.push(cpg.abspos); }
 
         s
     }
@@ -113,7 +110,7 @@ struct CpG {
 
 impl CpG {
     fn new(relpos: i32, abspos: CpGPosition, c: char) -> Self {
-        Self { relpos:relpos, abspos: abspos, methylated: c == 'Z' }
+        Self { relpos, abspos, methylated: c == 'Z' }
     }
 }
 
@@ -137,7 +134,7 @@ pub struct CpGPosition {
 
 impl CpGPosition {
     pub fn new(tid: i32, pos: i32) -> Self {
-        Self { tid: tid, pos: pos }
+        Self { tid, pos }
     }
 }
 
@@ -252,8 +249,7 @@ mod tests {
         let input = "tests/test1.bam";
         let mut reader = bamutil::get_reader(&input);
         for r in reader.records() {
-            let mut r = r.unwrap();
-
+            let r = r.unwrap();
             let br = BismarkRead::new(&r);
         }
     }
@@ -263,8 +259,7 @@ mod tests {
         let input = "tests/test1.bam";
         let mut reader = bamutil::get_reader(&input);
         for r in reader.records() {
-            let mut r = r.unwrap();
-
+            let r = r.unwrap();
             let br = BismarkRead::new(&r);
 
             br.get_concordance_state();
@@ -276,16 +271,11 @@ mod tests {
     fn pairwise_concordance_discordance_no_pair() {
         let min_distance = 2;
         let max_distance = 16;
-        // let tmp_cpgs: Vec<(i32, char)> = Vec::from([(2, 'z'), (100, 'z')]);
-        // let (n_con, n_dis) = compute_pairwise_concordance_discordance_from_read(tmp_cpgs, min_distance, max_distance);
-
-        // assert_eq!(n_con, 0);
-        // assert_eq!(n_dis, 0);
 
         let input = "tests/test1.bam";
         let mut reader = bamutil::get_reader(&input);
         for r in reader.records() {
-            let mut r = r.unwrap();
+            let r = r.unwrap();
 
             let br = BismarkRead::new(&r);
 
@@ -320,9 +310,11 @@ mod tests {
         let pos1 = CpGPosition { tid: 0, pos: 1 };
         let pos2 = CpGPosition { tid: 0, pos: 1 };
         let pos3 = CpGPosition { tid: 0, pos: 2 };
+        let pos4 = CpGPosition { tid: 1, pos: 1};
 
         assert_eq!(pos1 == pos2, true);
         assert_eq!(pos1 != pos3, true);
+        assert_eq!(pos1 != pos4, true);
     }
 
     #[test]
@@ -330,11 +322,15 @@ mod tests {
         let pos1 = CpGPosition { tid: 0, pos: 1 };
         let pos2 = CpGPosition { tid: 0, pos: 1 };
         let pos3 = CpGPosition { tid: 0, pos: 2 };
+        let pos4 = CpGPosition { tid: 1, pos: 1 };
 
         assert_eq!(pos1 <= pos2, true);
         assert_eq!(pos1 >= pos2, true);
 
         assert_eq!(pos1 < pos3, true);
         assert_eq!(pos1 > pos3, false);
+
+        assert_eq!(pos1 < pos4, true);
+        assert_eq!(pos3 < pos4, true);
     }
 }
