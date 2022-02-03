@@ -1,12 +1,11 @@
-use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
+use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Record}};
 use bio_types::genome::AbstractInterval;
 use std::fs;
 use std::io::Write;
 use std::vec::Vec;
 use std::str;
-
 use std::collections::{HashSet, HashMap};
-use indicatif::{ProgressBar, ProgressStyle, HumanDuration};
+use indicatif::{HumanDuration};
 
 use crate::{readutil, bamutil, progressbar};
 
@@ -14,8 +13,6 @@ pub struct LPMDResult {
     header: bam::HeaderView,
     n_read: i32,
     n_valid_read: i32,
-    n_forward: i32,
-    n_reverse: i32,
     n_concordant: i32,
     n_discordant: i32,
     pair2n_concordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32>,
@@ -31,8 +28,6 @@ impl LPMDResult {
             header: header,
             n_read: 0,
             n_valid_read: 0,
-            n_forward: 0,
-            n_reverse: 0,
             n_concordant: 0,
             n_discordant: 0,
             pair2n_concordant: pair2n_concordant,
@@ -46,14 +41,6 @@ impl LPMDResult {
 
     fn inc_n_valid_read(&mut self, i: i32) {
         self.n_valid_read += i;
-    }
-
-    fn inc_n_forward(&mut self, i: i32) {
-        self.n_forward += i;
-    }
-
-    fn inc_n_reverse(&mut self, i: i32) {
-        self.n_reverse += i;
     }
 
     fn inc_n_concordant(&mut self, i: i32) {
@@ -102,18 +89,12 @@ impl LPMDResult {
         let mut pairs: Vec<&(readutil::CpGPosition, readutil::CpGPosition)> = self.pair2n_concordant.keys().collect::<Vec<&(readutil::CpGPosition, readutil::CpGPosition)>>();
         pairs.sort();
 
-        let mut c = 0;
-        let mut d = 0;
-
         for (cpg1, cpg2) in pairs {
 
             let k = (*cpg1, *cpg2);
             let n_concordant = self.pair2n_concordant[&k];
             let n_discordant = self.pair2n_discordant[&k];
             let lpmd = (n_discordant as f32) / (n_concordant as f32 + n_discordant as f32);
-
-            c += n_concordant;
-            d += n_discordant;
 
             let chrom = bamutil::tid2chrom(cpg1.tid, &self.header);
             println!("{}\t{}\t{}\t{}\t{}\t{}", chrom, cpg1.pos, cpg2.pos, lpmd, n_concordant, n_discordant);
@@ -174,7 +155,7 @@ fn run_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, c
     let header = bamutil::get_header(&reader);
     let mut res = LPMDResult::new(header);
 
-    let mut flag_counter: HashMap<u16, i32> = HashMap::new();
+    let _flag_counter: HashMap<u16, i32> = HashMap::new();
 
     let bar = progressbar::ProgressBar::new();
 

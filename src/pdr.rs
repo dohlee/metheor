@@ -1,13 +1,9 @@
-use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux}};
-use std::fs::OpenOptions;
+use rust_htslib::{bam, bam::Read, bam::record::{Record}};
 use std::vec::Vec;
 use std::str;
 use std::fmt;
 use std::cmp::Ordering;
-use std::io::Write;
-use std::collections::{BTreeSet, HashMap};
-use indicatif::{ProgressBar, ProgressStyle};
-// use interval_tree::IntervalTree;
+use std::collections::{HashMap};
 
 use crate::{readutil, bamutil, progressbar};
 
@@ -55,7 +51,7 @@ impl Ord for PDRResult {
     fn cmp(&self, other: &Self) -> Ordering { self.pos.cmp(&other.pos) }
 }
 
-pub fn compute(input: &str, output: &str, min_depth: u32, min_cpgs: i32, min_qual: u8) {
+pub fn compute(input: &str, _output: &str, min_depth: u32, _min_cpgs: i32, min_qual: u8) {
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
@@ -76,7 +72,7 @@ pub fn compute(input: &str, output: &str, min_depth: u32, min_cpgs: i32, min_qua
         if cpg_positions.len() == 0 { continue; } // Read filtering: Ignore reads without CpGs.
 
         for cpg_position in cpg_positions.iter_mut() {
-            let mut r = pdr_result.entry(*cpg_position)
+            let r = pdr_result.entry(*cpg_position)
                             .or_insert(PDRResult::new(*cpg_position));
             
             match br.get_concordance_state() {

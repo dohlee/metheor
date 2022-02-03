@@ -1,10 +1,8 @@
-use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
-
-use std::collections::{HashSet, HashMap};
+use rust_htslib::{bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
 use std::fmt;
 use std::cmp::Ordering;
 
-use crate::bamutil;
+pub type QuartetPattern = usize;
 
 pub struct BismarkRead {
     // Read is defined as an array of CpG methylation states
@@ -29,8 +27,8 @@ impl BismarkRead {
         }
     }
 
-    pub fn get_num_cpgs(&self) -> u32 {
-        self.cpgs.len() as u32
+    pub fn get_num_cpgs(&self) -> usize {
+        self.cpgs.len()
     }
 
     pub fn get_cpg_positions(&self) -> Vec<CpGPosition> {
@@ -38,6 +36,33 @@ impl BismarkRead {
         for cpg in &self.cpgs { s.push(cpg.abspos); }
 
         s
+    }
+
+    pub fn get_cpg_quartets_and_patterns(&self) -> (Vec<Quartet>, Vec<QuartetPattern>) {
+        let mut quartets: Vec<Quartet> = Vec::new();
+        let mut patterns: Vec<QuartetPattern> = Vec::new();
+
+        if self.get_num_cpgs() < 4 { return (quartets, patterns) }
+
+        for i in 0..self.get_num_cpgs() - 3 {
+            let q = Quartet { 
+                pos1: self.cpgs[i].abspos,
+                pos2: self.cpgs[i+1].abspos,
+                pos3: self.cpgs[i+2].abspos,
+                pos4: self.cpgs[i+3].abspos,
+            };
+            let mut p = 0;
+
+            if self.cpgs[i].methylated { p += 8; }
+            if self.cpgs[i+1].methylated { p += 4; }
+            if self.cpgs[i+2].methylated { p += 2; }
+            if self.cpgs[i+3].methylated { p += 1; }
+
+            quartets.push(q);
+            patterns.push(p);
+        }
+        
+        (quartets, patterns)
     }
 
     pub fn get_first_cpg_position(&self) -> &CpGPosition {
@@ -90,9 +115,34 @@ impl BismarkRead {
             if min_anchor_pos == -1 { min_anchor_pos = cpg.relpos; }
             anchors.push(*cpg);
         }
-    
-        // println!("{}, {}", n_concordant, n_discordant);
+
         (n_concordant, n_discordant, pair2concordance)
+    }
+}
+
+#[derive(Eq, Hash, Copy)]
+pub struct Quartet {
+    pub pos1: CpGPosition,
+    pub pos2: CpGPosition,
+    pub pos3: CpGPosition,
+    pub pos4: CpGPosition,
+}
+
+impl Quartet {
+    pub fn new(pos1: CpGPosition, pos2: CpGPosition, pos3: CpGPosition, pos4: CpGPosition) -> Self {
+        Self { pos1, pos2, pos3, pos4 }
+    }
+}
+
+impl PartialEq for Quartet {
+    fn eq(&self, other: &Self) -> bool {
+        (self.pos1 == other.pos1) && (self.pos2 == other.pos2) && (self.pos3 == other.pos3) && (self.pos4 == other.pos4)
+    }
+}
+
+impl Clone for Quartet {
+    fn clone(&self) -> Self {
+        *self
     }
 }
 

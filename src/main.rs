@@ -15,8 +15,8 @@ fn main() {
         metheor::Commands::Pdr { input, output, min_depth, min_cpgs, min_qual } => {
             pdr::compute(input, output, *min_depth, *min_cpgs, *min_qual);
         }
-        metheor::Commands::Pm { input, output, min_depth } => {
-            pm::compute(input, output, *min_depth);
+        metheor::Commands::Pm { input, output, min_depth, min_qual } => {
+            pm::compute(input, output, *min_depth, *min_qual);
         }
         metheor::Commands::Me { input, output, min_depth } => {
             me::compute(input, output, *min_depth);

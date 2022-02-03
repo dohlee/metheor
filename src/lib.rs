@@ -56,7 +56,11 @@ pub enum Commands {
 
         /// Minimum depth of CpG quartets to consider
         #[clap(long, short='d', default_value_t=10)]
-        min_depth: i32,
+        min_depth: u32,
+
+        /// Minimum quality for a read to be considered.
+        #[clap(long, short='q', default_value_t=10)]
+        min_qual: u8,
     },
     /// Compute methylation entropy.
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]
