@@ -112,7 +112,7 @@ pub fn compute(input: &str, output: &str, min_distance: i32, max_distance: i32, 
 }
 
 fn run_all(input: &str, output: &str, min_distance: i32, max_distance: i32, min_qual: u8) -> LPMDResult {
-    println!("Computing LPMD with parameters input={}, output={}, min_distance={}, max_distance={}", input, output, min_distance, max_distance);
+    eprintln!("Computing LPMD with parameters input={}, output={}, min_distance={}, max_distance={}", input, output, min_distance, max_distance);
 
     let res = compute_all(input, min_distance, max_distance, min_qual);
     res.print_pair_statistics();
@@ -132,9 +132,9 @@ fn run_all(input: &str, output: &str, min_distance: i32, max_distance: i32, min_
 }
 
 fn run_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, cpg_set: &str, min_qual: u8) -> LPMDResult {
-    println!("Computing subset-LPMD with parameters input={}, output={}, min_distance={}, max_distance={}", input, output, min_distance, max_distance);
+    eprintln!("Computing subset-LPMD with parameters input={}, output={}, min_distance={}, max_distance={}", input, output, min_distance, max_distance);
 
-    print!("Processing target CpG set... ");
+    eprint!("Processing target CpG set... ");
     let mut target_cpgs: HashSet<(&str, i32)> = HashSet::new();
 
     let contents = fs::read_to_string(cpg_set)
@@ -149,7 +149,7 @@ fn run_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, c
         target_cpgs.insert((chrom, pos));
     }
 
-    println!("Analyzing {} CpGs in total.", target_cpgs.len());
+    eprintln!("Analyzing {} CpGs in total.", target_cpgs.len());
 
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);

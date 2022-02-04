@@ -18,8 +18,8 @@ fn main() {
         metheor::Commands::Pm { input, output, min_depth, min_qual } => {
             pm::compute(input, output, *min_depth, *min_qual);
         }
-        metheor::Commands::Me { input, output, min_depth } => {
-            me::compute(input, output, *min_depth);
+        metheor::Commands::Me { input, output, min_depth, min_qual } => {
+            me::compute(input, output, *min_depth, *min_qual);
         }
         metheor::Commands::Lpmd { input, output, min_distance, max_distance, cpg_set, min_qual } => {
             lpmd::compute(input, output, *min_distance, *max_distance, cpg_set, *min_qual);
