@@ -17,16 +17,28 @@ $ conda install -c dohlee metheor
 $ metheor pm --input <INPUT> --output <OUTPUT>
 ```
 
+*Options*
+
+`-i, --input`: Path to input BAM file.
+
 ### Methylation entropy (ME)
 ```
 $ metheor me --input <INPUT> --output <OUTPUT>
 ```
+
+*Options*
+
+`-i, --input`: Path to input BAM file.
 
 ### Proportion of discordant reads (PDR)
 
 ```
 $ metheor pdr --input <INPUT> > <OUTPUT>
 ```
+
+*Options*
+
+`-i, --input`: Path to input BAM file.
 
 ### Local pairwise methylation disorder (LPMD)
 ```
