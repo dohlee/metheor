@@ -27,7 +27,7 @@ pub enum Commands {
         #[clap(long, short='i', required=true, display_order=1)]
         input: String,
 
-        /// Output csv file.
+        /// Path to output table file summarizing the result of PM calculation.
         #[clap(long, short='o', required=true, display_order=2)]
         output: String,
 
@@ -50,7 +50,7 @@ pub enum Commands {
         #[clap(long, short='i', required=true, display_order=1)]
         input: String,
 
-        /// Output csv file.
+        /// Path to output table file summarizing the result of ME calculation.
         #[clap(long, short='o', required=true, display_order=2)]
         output: String,
 
@@ -69,7 +69,7 @@ pub enum Commands {
         #[clap(long, short='i', required=true, display_order=1)]
         input: String,
 
-        /// Output csv file.
+        /// Path to output table file summarizing the result of PDR calculation.
         #[clap(long, short='o', required=true, display_order=2)]
         output: String,
 

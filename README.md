@@ -21,6 +21,8 @@ $ metheor pm --input <INPUT> --output <OUTPUT>
 
 `-i, --input`: Path to input BAM file.
 
+`-o, --output`: Path to output table file summarizing the result of PM calculation.
+
 ### Methylation entropy (ME)
 ```
 $ metheor me --input <INPUT> --output <OUTPUT>
@@ -29,6 +31,8 @@ $ metheor me --input <INPUT> --output <OUTPUT>
 *Options*
 
 `-i, --input`: Path to input BAM file.
+
+`-o, --output`: Path to output table file summarizing the result of ME calculation.
 
 ### Proportion of discordant reads (PDR)
 
@@ -39,6 +43,8 @@ $ metheor pdr --input <INPUT> > <OUTPUT>
 *Options*
 
 `-i, --input`: Path to input BAM file.
+
+`-o, --output`: Path to output table file summarizing the result of PDR calculation.
 
 ### Local pairwise methylation disorder (LPMD)
 ```
