@@ -51,11 +51,14 @@ $ metheor lpmd --input <INPUT> --output <OUTPUT> [OPTIONS]
 
 `-o, --output`: Path to output table file summarizing the result of LPMD calculation.
 
-`-m, --min-distance`:
+`-p, --pairs`: (Optional) Concordance information for all CpG pairs.
 
-`-M, --max-distance`:
+`-m, --min-distance`: Minimum distance between CpG pairs to consider. [default: 2]
 
-`-c, --cpg-set`:
+`-M, --max-distance`: Maximum distance between CpG pairs to consider. [default: 16]
 
-`-q, --min-qual`:
+`-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
+
+`-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+
 

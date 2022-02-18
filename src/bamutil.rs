@@ -19,3 +19,7 @@ pub fn tid2chrom(tid: i32, header: &bam::HeaderView) -> String {
         .expect("Error parsing chromosome name.")
         .to_string()
 }
+
+pub fn chrom2tid(chrom: &[u8], header: &bam::HeaderView) -> u32 {
+    header.tid(chrom).unwrap()
+}

@@ -83,17 +83,17 @@ pub enum Commands {
     },
     /// Compute local pairwise methylation discordance (LPMD).
     Lpmd {
-        /// Input BAM file.
+        /// Path to input BAM file.
         #[clap(long, short='i', required=true, display_order=1)]
         input: String,
 
-        /// Output csv file.
+        /// Path to output table file summarizing the result of LPMD calculation.
         #[clap(long, short='o', required=true, display_order=2)]
         output: String,
 
-        /// Concordance information for all CpG pairs. (Optional)
-        #[clap(long, short='p', display_order=3)]
-        pairs: String,
+        /// (Optional) Concordance information for all CpG pairs.
+        #[clap(long, short='p', required=false, display_order=3)]
+        pairs: Option<String>,
 
         /// Minimum distance between CpG pairs to consider.
         #[clap(long, short='m', default_value_t=2, display_order=4)]
@@ -103,12 +103,12 @@ pub enum Commands {
         #[clap(long, short='M', default_value_t=16, display_order=5)]
         max_distance: i32,
 
-        /// Specify a set of CpGs (in BED file) to be analyzed.
-        #[clap(long, short='c', default_value="", display_order=6)]
-        cpg_set: String,
-        
         /// Minimum quality for a read to be considered.
-        #[clap(long, short='q', default_value_t=10, display_order=7)]
+        #[clap(long, short='q', default_value_t=10, display_order=6)]
         min_qual: u8,
+
+        /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+        #[clap(long, short='c', required=false, display_order=7)]
+        cpg_set: Option<String>,
     }
 }

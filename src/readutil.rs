@@ -1,6 +1,7 @@
 use rust_htslib::{bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
 use std::fmt;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 
 pub type QuartetPattern = usize;
 
@@ -36,6 +37,20 @@ impl BismarkRead {
         for cpg in &self.cpgs { s.push(cpg.abspos); }
 
         s
+    }
+
+    pub fn filter_isin(&mut self, target_cpgs: &HashSet<CpGPosition>) {
+        let mut new_cpgs: Vec<CpG> = Vec::new();
+
+        for cpg in self.cpgs.iter() {
+            println!("{}", cpg.abspos);
+        }
+
+        for cpg in self.cpgs.iter().filter(|x| target_cpgs.contains(&x.abspos)) {
+            new_cpgs.push(*cpg);
+        }
+
+        self.cpgs = new_cpgs;
     }
 
     pub fn get_cpg_quartets_and_patterns(&self) -> (Vec<Quartet>, Vec<QuartetPattern>) {
@@ -227,7 +242,7 @@ fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
 
         match abspos {
             Some(abspos) => {
-                if (r.flags() == 99) || (r.flags() == 147) { // Forward
+                if (r.flags() == 0) || (r.flags() == 99) || (r.flags() == 147) { // Forward
                     let cpgpos = CpGPosition::new(r.tid(), abspos as i32);
                     cpgs.push(CpG::new(relpos as i32, cpgpos, c));
                 } else {
@@ -245,49 +260,6 @@ fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
 pub fn count_z(meth_str: &str) -> i32 {
     (meth_str.matches("z").count() + meth_str.matches("Z").count()) as i32
 }
-
-// pub fn compute_pairwise_concordance_discordance_from_read(cpgs: Vec<(i32, char)>, min_distance: i32, max_distance: i32) -> (i32, i32, Vec<(CpGPosition, CpGPosition, i32)>) {
-//     let mut anchors: Vec<CpG> = Vec::new();
-//     let mut min_anchor_pos = -1;
-//     let mut n_concordant = 0;
-//     let mut n_discordant = 0;
-
-//     // for (i, c) in meth_str.chars().enumerate().filter(|(_i, c)| (*c == 'z') || (*c == 'Z')) {
-//     for (i, c) in cpgs.iter(){
-//         let dummy_cpgpos = CpGPosition::new(-1, -1);
-//         let cpg_state = CpG::new(*i as i32, dummy_cpgpos, *c);
-
-//         if min_anchor_pos != -1 {
-//             while (cpg_state.relpos - min_anchor_pos > max_distance) && (anchors.len() > 0) {
-//                 anchors.remove(0);
-
-//                 if anchors.len() > 0 {
-//                     min_anchor_pos = anchors[0].relpos;
-//                 } else {
-//                     min_anchor_pos = -1;
-//                 }
-//             }
-//         }
-
-//         for anchor in anchors.iter() {
-//             if cpg_state.relpos - anchor.relpos < min_distance {
-//                 continue;
-//             }
-            
-//             if anchor.methylated == cpg_state.methylated {
-//                 n_concordant += 1;
-//             } else {
-//                 n_discordant += 1;
-//             }
-//         }
-
-//         if min_anchor_pos == -1 { min_anchor_pos = cpg_state.relpos; }
-//         anchors.push(cpg_state);
-//     }
-
-//     // println!("{}, {}", n_concordant, n_discordant);
-//     (n_concordant, n_discordant)
-// }
 
 #[cfg(test)]
 mod tests {
