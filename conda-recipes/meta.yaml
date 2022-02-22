@@ -9,8 +9,8 @@ source:
 
 requirements:
     build:
-        # - {{ compiler('c') }}
-        # - {{ compiler('cxx') }}
+        - {{ compiler('c') }}
+        - {{ compiler('cxx') }}
         - rust
         # - clangdev
         # - pkg-config

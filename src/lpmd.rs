@@ -91,7 +91,7 @@ impl LPMDResult {
 
         let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
 
-        write!(out, "chrom\tcpg1\tcpg2\tlpmd\tn_concordant\tn_discordant\n")
+        writeln!(out, "chrom\tcpg1\tcpg2\tlpmd\tn_concordant\tn_discordant")
             .ok()
             .expect("Error writing to output file.");
 
@@ -104,7 +104,7 @@ impl LPMDResult {
 
             let chrom = bamutil::tid2chrom(cpg1.tid, &self.header);
 
-            write!(out, "{}\t{}\t{}\t{}\t{}\t{}\n", chrom, cpg1.pos, cpg2.pos, lpmd, n_concordant, n_discordant)
+            writeln!(out, "{}\t{}\t{}\t{}\t{}\t{}", chrom, cpg1.pos, cpg2.pos, lpmd, n_concordant, n_discordant)
                 .ok()
                 .expect("Error writing to output file.");
         }
@@ -133,11 +133,11 @@ fn run_all(input: &str, output: &str, min_distance: i32, max_distance: i32, min_
     let lpmd: f32 = res.compute_lpmd();
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
 
-    write!(out, "name\tlpmd\n")
+    writeln!(out, "name\tlpmd")
         .ok()
         .expect("Error writing to output file.");
 
-    write!(out, "{}\t{}\n", input, lpmd)
+    writeln!(out, "{}\t{}", input, lpmd)
         .ok()
         .expect("Error writing to output file.");
 
@@ -175,11 +175,11 @@ fn run_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, m
     let lpmd = res.compute_lpmd();
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
 
-    write!(out, "name\tlpmd\n")
+    writeln!(out, "name\tlpmd")
         .ok()
         .expect("Error writing to output file.");
 
-    write!(out, "{}\t{}\n", input, lpmd)
+    writeln!(out, "{}\t{}", input, lpmd)
         .ok()
         .expect("Error writing to output file.");
 

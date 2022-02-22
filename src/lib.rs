@@ -11,7 +11,7 @@ pub mod lpmd;
 #[derive(Parser)]
 #[clap(name = "metheor")]
 #[clap(about = "Summarizes the heterogeneity of DNA methylation states using BAM files.")]
-#[clap(version = "0.0.3")]
+#[clap(version = "0.0.6")]
 #[clap(author = "Dohoon Lee. <dohlee.bioinfo@gmail.com>")]
 pub struct Cli {
     #[clap(subcommand)]
@@ -37,11 +37,15 @@ pub enum Commands {
 
         /// Minimum number of consecutive CpGs in a CpG stretch to consider.
         #[clap(long, short='c', default_value_t=10, display_order=4)]
-        min_cpgs: i32,
+        min_cpgs: usize,
 
         /// Minimum quality for a read to be considered.
         #[clap(long, short='q', default_value_t=10, display_order=5)]
         min_qual: u8,
+
+        /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+        #[clap(long, short='c', required=false, display_order=7)]
+        cpg_set: Option<String>,
     },
     /// Compute epipolymorphism.
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]
@@ -56,11 +60,15 @@ pub enum Commands {
 
         /// Minimum depth of CpG quartets to consider
         #[clap(long, short='d', default_value_t=10, display_order=3)]
-        min_depth: u32,
+        min_depth: usize,
 
         /// Minimum quality for a read to be considered.
         #[clap(long, short='q', default_value_t=10, display_order=4)]
         min_qual: u8,
+
+        /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+        #[clap(long, short='c', required=false, display_order=7)]
+        cpg_set: Option<String>,
     },
     /// Compute methylation entropy.
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]
@@ -82,6 +90,7 @@ pub enum Commands {
         min_qual: u8,
     },
     /// Compute local pairwise methylation discordance (LPMD).
+    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
     Lpmd {
         /// Path to input BAM file.
         #[clap(long, short='i', required=true, display_order=1)]
