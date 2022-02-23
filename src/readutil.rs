@@ -9,6 +9,8 @@ use crate::{bamutil};
 pub type QuartetPattern = usize;
 
 pub struct BismarkRead {
+    start_pos: i32,
+    end_pos: i32,
     // Read is defined as an array of CpG methylation states
     // and their relative/absolute positions.
     cpgs: Vec<CpG>,
@@ -16,11 +18,20 @@ pub struct BismarkRead {
 
 impl BismarkRead {
     pub fn new(r: &Record) -> Self {
+
+        let mut start_pos = -1;
+        let mut end_pos = -1;
+
+        for abspos in r.reference_positions_full().map(|x| x.unwrap() as i32) {
+            if start_pos == -1 { start_pos = abspos; }
+            end_pos = abspos;
+        }
+
         match r.aux(b"XM") {
             Ok(value) => {
                 if let Aux::String(xm) = value {  // if value is a type of Aux::String, run:
                     let cpgs = get_cpgs(r, xm);
-                    Self { cpgs }
+                    Self { start_pos, end_pos, cpgs }
                 } else {
                     panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
                 }
@@ -31,8 +42,20 @@ impl BismarkRead {
         }
     }
 
+    pub fn get_start_pos(&self) -> i32 {
+        self.start_pos
+    }
+
+    pub fn get_end_pos(&self) -> i32 {
+        self.end_pos
+    }
+
     pub fn get_num_cpgs(&self) -> usize {
         self.cpgs.len()
+    }
+
+    pub fn get_cpgs(&self) -> &Vec<CpG> {
+        &self.cpgs 
     }
 
     pub fn get_cpg_positions(&self) -> Vec<CpGPosition> {
@@ -170,10 +193,10 @@ pub enum ReadConcordanceState {
 }
 
 #[derive(Copy)]
-struct CpG {
-    relpos: i32,
-    abspos: CpGPosition,
-    methylated: bool
+pub struct CpG {
+    pub relpos: i32,
+    pub abspos: CpGPosition,
+    pub methylated: bool
 }
 
 impl CpG {
@@ -278,7 +301,6 @@ pub fn get_target_cpgs(cpg_set: &str, header: &bam::HeaderView) -> HashSet<CpGPo
 
     target_cpgs
 }
-
 
 pub fn count_z(meth_str: &str) -> i32 {
     (meth_str.matches("z").count() + meth_str.matches("Z").count()) as i32

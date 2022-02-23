@@ -28,6 +28,10 @@ impl PMResult {
         Self{ pos1, pos2, pos3, pos4, quartet_pattern_counts }
     }
 
+    fn get_read_depth(&self) -> u32 {
+        self.quartet_pattern_counts.iter().sum()
+    }
+
     fn add_quartet_pattern(&mut self, p: readutil::QuartetPattern) {
         self.quartet_pattern_counts[p] += 1;
     }
@@ -43,14 +47,14 @@ impl PMResult {
     }
 }
 
-pub fn compute(input: &str, output: &str, min_depth: usize, min_qual: u8, cpg_set: &Option<String>) {
+pub fn compute(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set: &Option<String>) {
     match cpg_set {
         Some(cpg_set) => compute_subset(input, output, min_depth, min_qual, cpg_set),
         None => compute_all(input, output, min_depth, min_qual),
     }
 }
 
-pub fn compute_subset(input: &str, output: &str, min_depth: usize, min_qual: u8, cpg_set: &str) {
+pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set: &str) {
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
@@ -69,7 +73,7 @@ pub fn compute_subset(input: &str, output: &str, min_depth: usize, min_qual: u8,
 
         readcount += 1;
 
-        // TODO: read filtering.
+        if r.mapq() < min_qual { continue; }
         valid_readcount += 1;
 
         let (quartets, patterns) = br.get_cpg_quartets_and_patterns();
@@ -83,13 +87,14 @@ pub fn compute_subset(input: &str, output: &str, min_depth: usize, min_qual: u8,
 
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
     for stat in quartet2stat.values() {
+        if stat.get_read_depth() < min_depth { continue; }
         writeln!(out, "{}", stat.to_bedgraph_field(&header))
             .ok()
             .expect("Error writing to output file.");
     }
 }
 
-pub fn compute_all(input: &str, output: &str, min_depth: usize, min_qual: u8) {
+pub fn compute_all(input: &str, output: &str, min_depth: u32, min_qual: u8) {
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
@@ -104,7 +109,8 @@ pub fn compute_all(input: &str, output: &str, min_depth: usize, min_qual: u8) {
         let br = readutil::BismarkRead::new(&r);
 
         readcount += 1;
-        // TODO: read filtering.
+
+        if r.mapq() < min_qual { continue; }
         valid_readcount += 1;
 
         let (quartets, patterns) = br.get_cpg_quartets_and_patterns();
@@ -118,8 +124,20 @@ pub fn compute_all(input: &str, output: &str, min_depth: usize, min_qual: u8) {
 
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
     for stat in quartet2stat.values() {
+        if stat.get_read_depth() < min_depth { continue; }
+
         writeln!(out, "{}", stat.to_bedgraph_field(&header))
             .ok()
             .expect("Error writing to output file.");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test1() {
+        
     }
 }
