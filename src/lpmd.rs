@@ -89,7 +89,7 @@ impl LPMDResult {
         let mut pairs: Vec<&(readutil::CpGPosition, readutil::CpGPosition)> = self.pair2n_concordant.keys().collect::<Vec<&(readutil::CpGPosition, readutil::CpGPosition)>>();
         pairs.sort();
 
-        let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+        let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
 
         writeln!(out, "chrom\tcpg1\tcpg2\tlpmd\tn_concordant\tn_discordant")
             .ok()
@@ -131,7 +131,7 @@ fn run_all(input: &str, output: &str, min_distance: i32, max_distance: i32, min_
     let res = compute_all(input, min_distance, max_distance, min_qual);
 
     let lpmd: f32 = res.compute_lpmd();
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
 
     writeln!(out, "name\tlpmd")
         .ok()
@@ -173,7 +173,7 @@ fn run_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, m
 
     let res = compute_subset(input, min_distance, max_distance, &target_cpgs, min_qual);
     let lpmd = res.compute_lpmd();
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
 
     writeln!(out, "name\tlpmd")
         .ok()

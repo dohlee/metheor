@@ -302,10 +302,6 @@ pub fn get_target_cpgs(cpg_set: &str, header: &bam::HeaderView) -> HashSet<CpGPo
     target_cpgs
 }
 
-pub fn count_z(meth_str: &str) -> i32 {
-    (meth_str.matches("z").count() + meth_str.matches("Z").count()) as i32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

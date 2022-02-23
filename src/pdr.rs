@@ -102,7 +102,7 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_cpgs: usize
     let mut results: Vec<&PDRResult> = pdr_result.values().collect::<Vec<&PDRResult>>();
     results.sort();
 
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
 
     for r in results {
         if r.get_coverage() < min_depth { continue; } // Output filtering: CpG coverage should be >= min_depth.
@@ -149,7 +149,7 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_cpgs: usize, m
     let mut results: Vec<&PDRResult> = pdr_result.values().collect::<Vec<&PDRResult>>();
     results.sort();
 
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
 
     for r in results {
         if r.get_coverage() < min_depth { continue; } // Output filtering: CpG coverage should be >= min_depth.

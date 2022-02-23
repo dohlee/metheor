@@ -1,6 +1,9 @@
 use rust_htslib::{bam, bam::Read, bam::record::{Record}};
 use std::collections::{HashMap, BTreeMap};
 use itertools::Itertools;
+use std::fs;
+use std::io::Write;
+use std::fs::OpenOptions;
 use rand::{seq::IteratorRandom, thread_rng};
 
 use crate::{readutil, bamutil, progressbar};
@@ -144,10 +147,10 @@ fn run_all(input: &str, output: &str, min_qual: u8, max_depth: usize, min_overla
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
     for (cpg, fdrp) in result.iter() {
         let chrom = bamutil::tid2chrom(cpg.tid, &header);
-        write!(out, "{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, fdrp)
+        writeln!(out, "{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, fdrp)
             .ok()
             .expect("Error writing to output file.");
     }
@@ -159,10 +162,10 @@ fn run_subset(input: &str, output: &str, min_qual: u8, max_depth: usize, min_ove
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
     for (cpg, fdrp) in result.iter() {
         let chrom = bamutil::tid2chrom(cpg.tid, &header);
-        write!(out, "{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, fdrp)
+        writeln!(out, "{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, fdrp)
             .ok()
             .expect("Error writing to output file.");
     }
@@ -185,7 +188,6 @@ fn compute_all(input: &str, output: &str, min_qual: u8, max_depth: usize, min_ov
 
             r.add_read(&br);
         }
-
         readcount += 1;
     }
 

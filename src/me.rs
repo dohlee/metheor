@@ -86,7 +86,7 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_qual: u8) {
         }
     }
 
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
     for stat in quartet2stat.values() {
         if stat.get_read_depth() < min_depth { continue; }
         writeln!(out, "{}", stat.to_bedgraph_field(&header))
@@ -125,7 +125,7 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_qual: u8, c
         }
     }
 
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
     for stat in quartet2stat.values() {
         if stat.get_read_depth() < min_depth { continue; }
         writeln!(out, "{}", stat.to_bedgraph_field(&header))
