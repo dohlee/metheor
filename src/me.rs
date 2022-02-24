@@ -8,7 +8,7 @@ use std::collections::{HashMap};
 
 use crate::{readutil, bamutil, progressbar};
 
-struct MEResult {
+struct QuartetStat {
     pos1: readutil::CpGPosition,
     pos2: readutil::CpGPosition,
     pos3: readutil::CpGPosition,
@@ -16,7 +16,7 @@ struct MEResult {
     quartet_pattern_counts: [u32; 16],
 }
 
-impl MEResult {
+impl QuartetStat {
 
     fn new(q: readutil::Quartet) -> Self {
         let pos1 = q.pos1;
@@ -62,7 +62,7 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_qual: u8) {
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
-    let mut quartet2stat: HashMap<readutil::Quartet, MEResult> = HashMap::new();
+    let mut quartet2stat: HashMap<readutil::Quartet, QuartetStat> = HashMap::new();
 
     let mut readcount = 0;
     let mut valid_readcount = 0;
@@ -80,7 +80,7 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_qual: u8) {
         let (quartets, patterns) = br.get_cpg_quartets_and_patterns();
         for (q, p) in quartets.iter().zip(patterns.iter()) {
             let stat = quartet2stat.entry(*q)
-                        .or_insert(MEResult::new(*q));
+                        .or_insert(QuartetStat::new(*q));
 
             stat.add_quartet_pattern(*p);
         }
@@ -100,7 +100,7 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_qual: u8, c
     let header = bamutil::get_header(&reader);
     
     let target_cpgs = readutil::get_target_cpgs(cpg_set, &header);
-    let mut quartet2stat: HashMap<readutil::Quartet, MEResult> = HashMap::new();
+    let mut quartet2stat: HashMap<readutil::Quartet, QuartetStat> = HashMap::new();
 
     let mut readcount = 0;
     let mut valid_readcount = 0;
@@ -119,7 +119,7 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_qual: u8, c
         let (quartets, patterns) = br.get_cpg_quartets_and_patterns();
         for (q, p) in quartets.iter().zip(patterns.iter()) {
             let stat = quartet2stat.entry(*q)
-                        .or_insert(MEResult::new(*q));
+                        .or_insert(QuartetStat::new(*q));
 
             stat.add_quartet_pattern(*p);
         }
