@@ -120,6 +120,33 @@ pub enum Commands {
         #[clap(long, short='c', required=false, display_order=6)]
         cpg_set: Option<String>,
     },
+    /// Compute quantitative fraction of discordant read pairs (qFDRP).
+    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    Qfdrp {
+        /// Path to input BAM file.
+        #[clap(long, short='i', required=true, display_order=1)]
+        input: String,
+
+        /// Path to output table file summarizing the result of FDRP calculation.
+        #[clap(long, short='o', required=true, display_order=2)]
+        output: String,
+
+        /// Minimum quality for a read to be considered.
+        #[clap(long, short='q', default_value_t=10, display_order=3)]
+        min_qual: u8,
+
+        /// Maximum number of reads to consider.
+        #[clap(long, short='n', default_value_t=40, display_order=4)]
+        max_depth: usize,
+
+        /// Minimum overlap between two reads to consider in bp.
+        #[clap(long, short='l', default_value_t=35, display_order=5)]
+        min_overlap: i32,
+
+        /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+        #[clap(long, short='c', required=false, display_order=6)]
+        cpg_set: Option<String>,
+    },
     /// Compute local pairwise methylation discordance (LPMD).
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]
     Lpmd {

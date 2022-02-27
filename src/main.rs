@@ -4,6 +4,7 @@ mod pdr;
 mod pm;
 mod me;
 mod fdrp;
+mod qfdrp;
 mod lpmd;
 mod bamutil;
 mod readutil;
@@ -24,6 +25,9 @@ fn main() {
         }
         metheor::Commands::Fdrp { input, output, min_qual, max_depth, min_overlap, cpg_set } => {
             fdrp::compute(input, output, *min_qual, *max_depth, *min_overlap, cpg_set);
+        }
+        metheor::Commands::Qfdrp { input, output, min_qual, max_depth, min_overlap, cpg_set } => {
+            qfdrp::compute(input, output, *min_qual, *max_depth, *min_overlap, cpg_set);
         }
         metheor::Commands::Lpmd { input, output, pairs, min_distance, max_distance, min_qual, cpg_set } => {
             lpmd::compute(input, output, *min_distance, *max_distance, *min_qual, cpg_set, pairs );
