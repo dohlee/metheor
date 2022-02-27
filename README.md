@@ -1,6 +1,8 @@
 # Metheor
 
 [![conda](https://anaconda.org/dohlee/metheor/badges/installer/conda.svg)](https://anaconda.org/dohlee/metheor)
+![version](https://anaconda.org/dohlee/metheor/badges/version.svg)
+![downloads](https://anaconda.org/dohlee/metheor/badges/downloads.svg)
 ![github actions](https://github.com/dohlee/metheor/actions/workflows/rust.yml/badge.svg)
 
 Compute levels of DNA methylation heterogeneity from Bismark-aligned bisulfite sequencing data.
