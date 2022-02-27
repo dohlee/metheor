@@ -14,8 +14,6 @@ impl ProgressBar {
         Self { bar: bar }
     }
 
-    pub fn elapsed(&self) ->
-
     pub fn inc_length(&self, i: u64) {
         self.bar.inc_length(i);
     }
