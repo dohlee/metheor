@@ -68,10 +68,6 @@ impl BismarkRead {
     pub fn filter_isin(&mut self, target_cpgs: &HashSet<CpGPosition>) {
         let mut new_cpgs: Vec<CpG> = Vec::new();
 
-        for cpg in self.cpgs.iter() {
-            println!("{}", cpg.abspos);
-        }
-
         for cpg in self.cpgs.iter().filter(|x| target_cpgs.contains(&x.abspos)) {
             new_cpgs.push(*cpg);
         }
@@ -306,6 +302,7 @@ pub fn get_target_cpgs(cpg_set: &str, header: &bam::HeaderView) -> HashSet<CpGPo
 mod tests {
     use super::*;
     use super::super::bamutil;
+    use rust_htslib::bam::Read;
 
     #[test]
     fn test_bismarkread_constructor() {
