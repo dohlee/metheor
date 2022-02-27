@@ -1,7 +1,5 @@
-use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Record}};
+use rust_htslib::{bam, bam::Read};
 use std::fs;
-use std::fs::OpenOptions;
-use std::vec::Vec;
 use std::str;
 use std::io::Write;
 use std::collections::{HashMap};
@@ -84,6 +82,8 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_qual: u8) {
 
             stat.add_quartet_pattern(*p);
         }
+
+        if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
 
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
@@ -123,6 +123,8 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_qual: u8, c
 
             stat.add_quartet_pattern(*p);
         }
+
+        if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
 
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();

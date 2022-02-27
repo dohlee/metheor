@@ -1,4 +1,4 @@
-use rust_htslib::{bam, bam::Read, bam::record::{Record}};
+use rust_htslib::{bam, bam::Read};
 use std::vec::Vec;
 use std::fs;
 use std::io::Write;
@@ -96,7 +96,7 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_cpgs: usize
         }
         
         valid_readcount += 1;
-        if readcount % 10000 == 0 { bar.update_pdr(readcount, valid_readcount) };
+        if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
     
     let mut results: Vec<&PDRResult> = pdr_result.values().collect::<Vec<&PDRResult>>();
@@ -143,7 +143,7 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_cpgs: usize, m
         }
         
         valid_readcount += 1;
-        if readcount % 10000 == 0 { bar.update_pdr(readcount, valid_readcount) };
+        if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
     
     let mut results: Vec<&PDRResult> = pdr_result.values().collect::<Vec<&PDRResult>>();

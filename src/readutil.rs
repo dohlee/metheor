@@ -1,4 +1,4 @@
-use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
+use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
 use std::fmt;
 use std::fs;
 use std::cmp::Ordering;

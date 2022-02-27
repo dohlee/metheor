@@ -14,6 +14,8 @@ impl ProgressBar {
         Self { bar: bar }
     }
 
+    pub fn elapsed(&self) ->
+
     pub fn inc_length(&self, i: u64) {
         self.bar.inc_length(i);
     }
@@ -26,7 +28,11 @@ impl ProgressBar {
         self.bar.set_message(s);
     }
 
-    pub fn update_pdr(&self, readcount: i32, valid_readcount: i32) {
+    pub fn finish_with_message(&self, s: String) {
+        self.bar.finish_with_message(s);
+    }
+
+    pub fn update(&self, readcount: i32, valid_readcount: i32) {
         self.inc_length(10000);
         self.inc(10000);
         self.set_message(format!("Processed {} reads, found {} valid reads.", readcount, valid_readcount));

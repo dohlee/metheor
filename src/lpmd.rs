@@ -1,5 +1,4 @@
 use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Record}};
-use bio_types::genome::AbstractInterval;
 use std::fs;
 use std::io::Write;
 use std::vec::Vec;
@@ -151,7 +150,7 @@ fn run_all(input: &str, output: &str, min_distance: i32, max_distance: i32, min_
 
 fn run_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, min_qual: u8, cpg_set: &str, pairs: &Option<String>) -> LPMDResult {
     eprintln!("Computing subset-LPMD with parameters input={}, output={}, min_distance={}, max_distance={}", input, output, min_distance, max_distance);
-    let mut reader = bamutil::get_reader(&input);
+    let reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
     eprint!("Processing target CpG set... ");
@@ -216,7 +215,6 @@ fn compute_all(input: &str, min_distance: i32, max_distance: i32, min_qual: u8) 
             bar.update_lpmd(res.progress_string());
         }
     }
-
     // bar.finish_with_message(res.done_string(HumanDuration(bar.elapsed())));
 
     res
@@ -249,6 +247,7 @@ fn compute_subset(input: &str, min_distance: i32, max_distance: i32, target_cpgs
     
         if res.n_read % 10000 == 0 { bar.update_lpmd(res.progress_string()); }
     }
+    // bar.finish_with_message(res.done_string(HumanDuration(bar.elapsed())));
 
     res
 }
