@@ -13,6 +13,7 @@ pub mod lpmd;
 #[clap(about = "Summarizes the heterogeneity of DNA methylation states using BAM files.")]
 #[clap(version = "0.0.8")]
 #[clap(author = "Dohoon Lee. <dohlee.bioinfo@gmail.com>")]
+#[clap(author = "Bonil Koo. <bikoo95@snu.ac.kr>")]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,
