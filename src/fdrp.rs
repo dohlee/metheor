@@ -76,18 +76,6 @@ impl AssociatedReads {
         num_overlap_bases
     }
 
-    fn get_num_overlap_cpgs(&self, i: usize, j: usize) -> i32 {
-        let r1 = self.reads[i];
-        let r2 = self.reads[j];
-
-        let mut num_overlap_cpgs = 0;
-        for p in 0..MAX_READ_LEN * 2 + 1 {
-            num_overlap_cpgs += (((r1[p as usize] & r2[p as usize]) >> 1) & 1) as i32;
-        }
-
-        num_overlap_cpgs
-    }
-
     fn is_discordant(&self, i: usize, j: usize) -> bool {
         let r1 = self.reads[i];
         let r2 = self.reads[j];
@@ -166,7 +154,6 @@ fn run_subset(input: &str, output: &str, min_qual: u8, max_depth: usize, min_ove
 
 fn compute_all(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32) -> BTreeMap<readutil::CpGPosition, f32> {
     let mut reader = bamutil::get_reader(&input);
-    // let header = bamutil::get_header(&reader);
 
     let mut readcount = 0;
     let mut valid_readcount = 0;

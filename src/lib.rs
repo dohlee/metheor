@@ -1,6 +1,6 @@
 use std::str;
 
-use clap::{AppSettings, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 pub mod readutil;
 pub mod bamutil;
@@ -12,8 +12,8 @@ pub mod lpmd;
 #[clap(name = "metheor")]
 #[clap(about = "Summarizes the heterogeneity of DNA methylation states using BAM files.")]
 #[clap(version = "0.0.8")]
-#[clap(author = "Dohoon Lee. <dohlee.bioinfo@gmail.com>")]
-#[clap(author = "Bonil Koo. <bikoo95@snu.ac.kr>")]
+#[clap(author = "Dohoon Lee. <dohlee.bioinfo@gmail.com>\nBonil Koo. <bikoo95@snu.ac.kr>")]
+#[clap(arg_required_else_help = true)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,
@@ -22,7 +22,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Compute proportion of discordant reads (PDR).
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Pdr {
         /// Input BAM file.
         #[clap(long, short='i', required=true, display_order=1)]
@@ -49,7 +49,7 @@ pub enum Commands {
         cpg_set: Option<String>,
     },
     /// Compute epipolymorphism.
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Pm {
         /// Input BAM file.
         #[clap(long, short='i', required=true, display_order=1)]
@@ -72,7 +72,7 @@ pub enum Commands {
         cpg_set: Option<String>,
     },
     /// Compute methylation entropy.
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Me {
         /// Input BAM file.
         #[clap(long, short='i', required=true, display_order=1)]
@@ -95,7 +95,7 @@ pub enum Commands {
         cpg_set: Option<String>,
     },
     /// Compute fraction of discordant read pairs (FDRP).
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Fdrp {
         /// Path to input BAM file.
         #[clap(long, short='i', required=true, display_order=1)]
@@ -122,7 +122,7 @@ pub enum Commands {
         cpg_set: Option<String>,
     },
     /// Compute quantitative fraction of discordant read pairs (qFDRP).
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Qfdrp {
         /// Path to input BAM file.
         #[clap(long, short='i', required=true, display_order=1)]
@@ -149,7 +149,7 @@ pub enum Commands {
         cpg_set: Option<String>,
     },
     /// Compute local pairwise methylation discordance (LPMD).
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Lpmd {
         /// Path to input BAM file.
         #[clap(long, short='i', required=true, display_order=1)]

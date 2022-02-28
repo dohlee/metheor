@@ -26,10 +26,6 @@ impl ProgressBar {
         self.bar.set_message(s);
     }
 
-    pub fn finish_with_message(&self, s: String) {
-        self.bar.finish_with_message(s);
-    }
-
     pub fn update(&self, readcount: i32, valid_readcount: i32) {
         self.inc_length(10000);
         self.inc(10000);

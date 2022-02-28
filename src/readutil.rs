@@ -102,10 +102,6 @@ impl BismarkRead {
         (quartets, patterns)
     }
 
-    pub fn get_first_cpg_position(&self) -> &CpGPosition {
-        &self.cpgs[0].abspos
-    }
-
     pub fn get_concordance_state(&self) -> ReadConcordanceState {
         let init_methylated = self.cpgs[0].methylated;
         let mut res = ReadConcordanceState::Concordant;
@@ -163,12 +159,6 @@ pub struct Quartet {
     pub pos2: CpGPosition,
     pub pos3: CpGPosition,
     pub pos4: CpGPosition,
-}
-
-impl Quartet {
-    pub fn new(pos1: CpGPosition, pos2: CpGPosition, pos3: CpGPosition, pos4: CpGPosition) -> Self {
-        Self { pos1, pos2, pos3, pos4 }
-    }
 }
 
 impl PartialEq for Quartet {

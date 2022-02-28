@@ -1,10 +1,9 @@
-use rust_htslib::{bam, bam::Read, bam::ext::BamRecordExtensions, bam::record::{Record}};
+use rust_htslib::{bam, bam::Read};
 use std::fs;
 use std::io::Write;
 use std::vec::Vec;
 use std::str;
 use std::collections::{HashSet, HashMap};
-use indicatif::{HumanDuration};
 
 use crate::{readutil, bamutil, progressbar};
 
@@ -60,13 +59,6 @@ impl LPMDResult {
 
         format!("Processed {} reads, found {} valid reads. LPMD={:.4} ({}/{})",
             self.n_read, self.n_valid_read, lpmd, self.n_discordant, self.n_concordant + self.n_discordant)
-    }
-
-    fn done_string(&self, t: HumanDuration) -> String {
-        let lpmd = self.compute_lpmd();
-
-        format!("Processed {} reads, found {} valid reads. LPMD={:.4} ({}/{}). Done in {}", 
-            self.n_read, self.n_valid_read, lpmd, self.n_discordant, self.n_concordant + self.n_discordant, t)
     }
 
     fn add_pair_concordance(&mut self, pos1: &readutil::CpGPosition, pos2: &readutil::CpGPosition, concordance: &readutil::ReadConcordanceState) {
@@ -250,28 +242,6 @@ fn compute_subset(input: &str, min_distance: i32, max_distance: i32, target_cpgs
     // bar.finish_with_message(res.done_string(HumanDuration(bar.elapsed())));
 
     res
-}
-
-fn get_all_cpgs_in_read(r: &Record, xm: &str) -> Vec<(i32, char)> {
-    
-    let mut cpgs: Vec<(i32, char)> = Vec::new();
-    for (pos, c) in r.reference_positions_full().zip(xm.chars()) {
-        
-        if (c != 'z') && (c != 'Z') { continue; }
-
-        match pos {
-            Some(pos) => {
-                if (r.flags() == 99) || (r.flags() == 147) { // Forward
-                    cpgs.push((pos as i32, c));
-                } else {
-                    cpgs.push(((pos - 1) as i32, c));
-                }
-            },
-            None => {}
-        }
-    }
-
-    cpgs
 }
 
 #[cfg(test)]

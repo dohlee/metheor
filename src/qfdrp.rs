@@ -76,18 +76,6 @@ impl AssociatedReads {
         num_overlap_bases
     }
 
-    fn get_num_overlap_cpgs(&self, i: usize, j: usize) -> i32 {
-        let r1 = self.reads[i];
-        let r2 = self.reads[j];
-
-        let mut num_overlap_cpgs = 0;
-        for p in 0..MAX_READ_LEN * 2 + 1 {
-            num_overlap_cpgs += (((r1[p as usize] & r2[p as usize]) >> 1) & 1) as i32;
-        }
-
-        num_overlap_cpgs
-    }
-
     fn hamming_distance(&self, i: usize, j: usize) -> f32 {
         let r1 = self.reads[i];
         let r2 = self.reads[j];
