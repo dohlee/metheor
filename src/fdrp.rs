@@ -3,7 +3,7 @@ use std::collections::{BTreeMap};
 use itertools::Itertools;
 use std::fs;
 use std::io::Write;
-use rand::{seq::IteratorRandom};
+use rand::Rng;
 
 use crate::{readutil, bamutil, progressbar};
 
@@ -20,13 +20,16 @@ struct AssociatedReads {
     // 111 (7 in decimal) : read covers this position, and CpG at this position is methylated. 
     pos: readutil::CpGPosition,
     reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]>,
+    num_total_read: i32,
+    max_depth: usize,
 }
 
 impl AssociatedReads {
-    fn new(pos: readutil::CpGPosition) -> Self {
+    fn new(pos: readutil::CpGPosition, max_depth: usize) -> Self {
         let reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]> = Vec::new(); 
+        let num_total_read = 0;
 
-        Self { pos, reads }
+        Self { pos, reads, num_total_read, max_depth }
     }
 
     fn get_relative_position(&self, other_pos: readutil::CpGPosition) -> usize {
@@ -57,11 +60,21 @@ impl AssociatedReads {
             }
         }
 
-        self.reads.push(new_read);
-    }
+        // Reservoir sampling.
+        // Fill if current reads are fewer than specified maximum depth.
+        if self.num_total_read < self.max_depth as i32 {
+            self.num_total_read += 1;
+            self.reads.push(new_read);
+        }
+        // Sample jth element and replace with current read with probability 1/num_total_read.
+        else {
+            self.num_total_read += 1;
 
-    fn sample_reads(&mut self, n: usize) {
-        self.reads = self.reads.iter().cloned().choose_multiple(&mut rand::thread_rng(), n);
+            let j = rand::thread_rng().gen_range(1..self.num_total_read + 1);
+            if j <= self.max_depth as i32 {
+                self.reads[(j-1) as usize] = new_read;
+            }
+        }
     }
 
     fn get_num_overlap_bases(&self, i: usize, j: usize) -> i32 {
@@ -91,11 +104,7 @@ impl AssociatedReads {
         false
     }
 
-    fn compute_fdrp(&mut self, min_overlap: i32, max_depth: usize) -> f32 {
-        if self.get_num_reads() > max_depth {
-            self.sample_reads(max_depth);
-        }
-
+    fn compute_fdrp(&mut self, min_overlap: i32) -> f32 {
         let num_reads = self.get_num_reads();
 
         let mut fdrp = 0.0;
@@ -169,7 +178,7 @@ fn compute_all(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32) ->
 
         for cpg_position in br.get_cpg_positions().iter() {
             let r = cpg2reads.entry(*cpg_position)
-                        .or_insert(AssociatedReads::new(*cpg_position));
+                        .or_insert(AssociatedReads::new(*cpg_position, max_depth));
 
             r.add_read(&br);
         }
@@ -180,7 +189,7 @@ fn compute_all(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32) ->
     let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
 
     for (cpg, reads) in cpg2reads.iter_mut() {
-        result.insert(*cpg, reads.compute_fdrp(min_overlap, max_depth));
+        result.insert(*cpg, reads.compute_fdrp(min_overlap));
     }
 
     result
@@ -207,7 +216,7 @@ fn compute_subset(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32,
 
         for cpg_position in br.get_cpg_positions().iter() {
             let r = cpg2reads.entry(*cpg_position)
-                        .or_insert(AssociatedReads::new(*cpg_position));
+                        .or_insert(AssociatedReads::new(*cpg_position, max_depth));
 
             r.add_read(&br);
         }
@@ -218,7 +227,7 @@ fn compute_subset(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32,
     let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
 
     for (cpg, reads) in cpg2reads.iter_mut() {
-        result.insert(*cpg, reads.compute_fdrp(min_overlap, max_depth));
+        result.insert(*cpg, reads.compute_fdrp(min_overlap));
     }
 
     result
