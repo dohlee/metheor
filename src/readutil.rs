@@ -22,9 +22,14 @@ impl BismarkRead {
         let mut start_pos = -1;
         let mut end_pos = -1;
 
-        for abspos in r.reference_positions_full().map(|x| x.unwrap() as i32) {
-            if start_pos == -1 { start_pos = abspos; }
-            end_pos = abspos;
+        for abspos in r.reference_positions_full() {
+            match abspos {
+                Some(abspos) => {
+                    if start_pos == -1 { start_pos = abspos as i32; }
+                    end_pos = abspos as i32;
+                }
+                None => {}
+            }
         }
 
         match r.aux(b"XM") {
