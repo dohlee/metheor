@@ -23,3 +23,15 @@ pub fn tid2chrom(tid: i32, header: &bam::HeaderView) -> String {
 pub fn chrom2tid(chrom: &[u8], header: &bam::HeaderView) -> u32 {
     header.tid(chrom).unwrap()
 }
+
+pub fn is_paired_end(input: &str) -> bool {
+    let mut reader = get_reader(&input);
+    let mut flag = false;
+
+    for r in reader.records().map(|r| r.unwrap()) {
+        if r.is_paired() { flag = true; }
+        break;
+    }
+
+    flag
+}

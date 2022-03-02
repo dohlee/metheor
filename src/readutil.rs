@@ -2,7 +2,7 @@ use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}
 use std::fmt;
 use std::fs;
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use crate::{bamutil};
 
@@ -116,6 +116,25 @@ impl BismarkRead {
         }
 
         res
+    }
+
+    pub fn get_stretch_info(&self) -> HashMap<i32, i32> {
+        let mut stretch_info: HashMap<i32, i32> = HashMap::new();
+        let mut curr_stretch_length = 0;
+
+        for cpg in &self.cpgs {
+            if cpg.methylated {
+                curr_stretch_length += 1;
+                for l in 1..curr_stretch_length+1 {
+                    let v = stretch_info.entry(l).or_insert(0);
+                    *v += 1;
+                }
+            } else {
+                curr_stretch_length = 0;
+            }
+        }
+
+        stretch_info
     }
 
     pub fn compute_pairwise_cpg_concordance_discordance(&self, min_distance: i32, max_distance: i32) -> (i32, i32, Vec<(CpGPosition, CpGPosition, ReadConcordanceState)>) {

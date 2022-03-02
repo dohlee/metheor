@@ -7,7 +7,7 @@ use rand::Rng;
 
 use crate::{readutil, bamutil, progressbar};
 
-const MAX_READ_LEN: i32 = 151;
+const MAX_READ_LEN: i32 = 51;
 
 struct AssociatedReads {
     // Use compact representation of reads.

@@ -28,7 +28,7 @@ pub enum Commands {
         #[clap(long, short='i', required=true, display_order=1)]
         input: String,
 
-        /// Path to output table file summarizing the result of PM calculation.
+        /// Path to output table file summarizing the result of PDR calculation.
         #[clap(long, short='o', required=true, display_order=2)]
         output: String,
 
@@ -55,7 +55,7 @@ pub enum Commands {
         #[clap(long, short='i', required=true, display_order=1)]
         input: String,
 
-        /// Path to output table file summarizing the result of ME calculation.
+        /// Path to output table file summarizing the result of PM calculation.
         #[clap(long, short='o', required=true, display_order=2)]
         output: String,
 
@@ -148,6 +148,33 @@ pub enum Commands {
         #[clap(long, short='c', required=false, display_order=6)]
         cpg_set: Option<String>,
     },
+    /// Compute methylation haplotype load (MHL).
+    #[clap(arg_required_else_help = true)]
+    Mhl {
+        /// Input BAM file.
+        #[clap(long, short='i', required=true, display_order=1)]
+        input: String,
+
+        /// Path to output table file summarizing the result of MHL calculation.
+        #[clap(long, short='o', required=true, display_order=2)]
+        output: String,
+
+        /// Minimum depth of CpG stretches to consider.
+        #[clap(long, short='d', default_value_t=10, display_order=3)]
+        min_depth: u32,
+
+        /// Minimum number of consecutive CpGs in a CpG stretch to consider.
+        #[clap(long, short='c', default_value_t=10, display_order=4)]
+        min_cpgs: usize,
+
+        /// Minimum quality for a read to be considered.
+        #[clap(long, short='q', default_value_t=10, display_order=5)]
+        min_qual: u8,
+
+        /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+        #[clap(long, short='c', required=false, display_order=6)]
+        cpg_set: Option<String>,
+    },
     /// Compute local pairwise methylation discordance (LPMD).
     #[clap(arg_required_else_help = true)]
     Lpmd {
@@ -178,5 +205,17 @@ pub enum Commands {
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
         #[clap(long, short='c', required=false, display_order=7)]
         cpg_set: Option<String>,
+    },
+    /// Add bismark XM tag to BAM file.
+    #[clap(arg_required_else_help = true)]
+    Tag {
+        #[clap(long, short='i', required=true, display_order=1)]
+        input: String,
+
+        #[clap(long, short='o', required=true, display_order=2)]
+        output: String,
+
+        #[clap(long, short='g', required=true, display_order=3)]
+        genome: String,
     }
 }
