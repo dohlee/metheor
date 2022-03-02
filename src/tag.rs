@@ -271,7 +271,7 @@ pub fn run(input: &str, output: &str, genome: &str) {
         let xm_tag_string = match flag_reverse_complement {
             true => xm_tag.iter().rev().collect::<String>(),
             false => xm_tag.iter().collect::<String>()
-        }
+        };
 
         r.push_aux("XM".as_bytes(), Aux::String(&xm_tag_string));
         writer.write(&r);
@@ -287,6 +287,14 @@ mod tests {
 
     #[test]
     fn test_reverse_complement() {
-        assert_eq!("ATGC", reverse_complement("GCAT"));
+        let mut switch_base: HashMap<char, char> = HashMap::new();
+        switch_base.insert('A', 'T');
+        switch_base.insert('C', 'G');
+        switch_base.insert('G', 'C');
+        switch_base.insert('T', 'A');
+        switch_base.insert('N', 'N');
+        switch_base.insert('-', '-');
+
+        assert_eq!("ATGC", reverse_complement("GCAT", &switch_base));
     }
 }
