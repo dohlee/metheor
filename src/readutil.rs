@@ -47,6 +47,13 @@ impl BismarkRead {
         }
     }
 
+    pub fn get_first_cpg_position(&self) -> Option<CpGPosition> {
+        match self.get_num_cpgs() {
+            0 => None,
+            _ => Some(self.cpgs[0].abspos)
+        }
+    }
+
     pub fn get_start_pos(&self) -> i32 {
         self.start_pos
     }

@@ -3,7 +3,7 @@ use rust_htslib::faidx;
 use std::collections::HashMap;
 use std::str;
 
-use crate::{readutil, bamutil, progressbar};
+use crate::{bamutil};
 
 fn need_reverse_complement(read: &Record) -> bool {
     if (!read.is_reverse() && read.is_first_in_template()) || (read.is_reverse() && read.is_last_in_template()) {
@@ -69,7 +69,6 @@ pub fn run(input: &str, output: &str, genome: &str) {
         if key == "SQ" {
             for (tid, record) in records.iter().enumerate() {
                 tid2size.insert(tid, record["LN"].parse().unwrap());
-                // println!("{}\t{}\t{}", key, record["SN"], record["LN"]);
             }
         }
     }
@@ -88,7 +87,7 @@ pub fn run(input: &str, output: &str, genome: &str) {
 
     println!("Parsing reference genome...");
     let mut my_ref_genome: HashMap<usize, &[u8]> = HashMap::new();
-    for (tid, size) in tid2size.iter() {
+    for (tid, _size) in tid2size.iter() {
         let ref_array = ref_genome.fetch_seq(bamutil::tid2chrom(*tid as i32, &header), 0, tid2size[tid])
             .ok().expect("Error fetching reference genome sequence.");
         my_ref_genome.insert(*tid, ref_array);
@@ -274,7 +273,7 @@ pub fn run(input: &str, output: &str, genome: &str) {
         };
 
         r.push_aux("XM".as_bytes(), Aux::String(&xm_tag_string));
-        writer.write(&r);
+        writer.write(&r).ok().expect("Error writing to output file.");
     }
 }
 
