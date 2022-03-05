@@ -1,11 +1,10 @@
-use rust_htslib::{bam, bam::Read};
-use std::vec::Vec;
+use rust_htslib::{bam::Read};
 use std::fs;
 use std::io::Write;
 use std::str;
 use std::fmt;
 use std::cmp::Ordering;
-use std::collections::{HashMap};
+use std::collections::{HashMap, BTreeMap};
 
 use crate::{readutil, bamutil, progressbar};
 
@@ -25,13 +24,13 @@ impl PDRResult {
 
     fn inc_discordant(&mut self) { self.n_discordant += 1; }
 
+    fn get_n_concordant(&self) -> u32 { self.n_concordant }
+
+    fn get_n_discordant(&self) -> u32 { self.n_discordant }
+
     fn get_coverage(&self) -> u32 { self.n_concordant + self.n_discordant }
 
-    fn to_bedgraph_field(&self, header: &bam::HeaderView) -> String {
-        let chrom = bamutil::tid2chrom(self.pos.tid, header);
-        let pdr = (self.n_discordant as f32) / (self.n_concordant as f32 + self.n_discordant as f32);
-        format!("{}\t{}\t{}\t{}\t{}\t{}", chrom, self.pos.pos, self.pos.pos + 2, pdr, self.n_concordant, self.n_discordant)
-    }
+    fn compute_pdr(&self) -> f32 { (self.n_discordant as f32)  / (self.n_concordant as f32 + self.n_discordant as f32) }
 }
 
 impl fmt::Display for PDRResult {
@@ -66,30 +65,51 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_cpgs: usize
 
     let target_cpgs = readutil::get_target_cpgs(cpg_set, &header);
 
-    let mut pdr_result: HashMap<readutil::CpGPosition, PDRResult> = HashMap::new();
+    let mut cpg2reads: HashMap<readutil::CpGPosition, PDRResult> = HashMap::new();
 
     let mut readcount = 0;
     let mut valid_readcount = 0;
 
+    let mut result: BTreeMap<readutil::CpGPosition, (f32, u32, u32)> = BTreeMap::new();
     let bar = progressbar::ProgressBar::new();
 
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
         br.filter_isin(&target_cpgs);
 
-        if br.get_num_cpgs() < min_cpgs { continue; }
-
         readcount += 1;
+        if br.get_num_cpgs() < min_cpgs { continue; }
         if r.mapq() < min_qual { continue; } // Read filtering: Minimum quality should be >= min_qual.
 
         let mut cpg_positions = br.get_cpg_positions();
         if cpg_positions.len() == 0 { continue; } // Read filtering: Ignore reads without CpGs.
 
         for cpg_position in cpg_positions.iter_mut() {
-            let r = pdr_result.entry(*cpg_position)
+
+            match br.get_first_cpg_position() {
+                Some(first_cpg_position) => {
+                    cpg2reads.retain(|&cpg, reads| {
+                        let retain = {
+                            if (cpg < first_cpg_position) && (reads.get_coverage() >= min_depth) {
+                                result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
+
+                                false
+                            } else {
+                                true
+                            }
+                        };
+                        retain
+                    }); // Finalize and compute metric for the CpGs before the first CpG in this read.
+                }
+                None => {}
+            }
+
+            let r = cpg2reads.entry(*cpg_position)
                             .or_insert(PDRResult::new(*cpg_position));
+
+            let concordance_state = br.get_concordance_state();
             
-            match br.get_concordance_state() {
+            match concordance_state {
                 readutil::ReadConcordanceState::Concordant => r.inc_concordant(),
                 readutil::ReadConcordanceState::Discordant => r.inc_discordant(),
             }
@@ -98,15 +118,19 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_cpgs: usize
         valid_readcount += 1;
         if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
-    
-    let mut results: Vec<&PDRResult> = pdr_result.values().collect::<Vec<&PDRResult>>();
-    results.sort();
+
+    for (&cpg, reads) in cpg2reads.iter() {
+        if reads.get_coverage() >= min_depth {
+            result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
+        }
+    }
 
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
 
-    for r in results {
-        if r.get_coverage() < min_depth { continue; } // Output filtering: CpG coverage should be >= min_depth.
-        writeln!(out, "{}", r.to_bedgraph_field(&header))
+    for (cpg, (pdr, n_concordant, n_discordant)) in result.iter() {
+        let chrom = bamutil::tid2chrom(cpg.tid, &header);
+        // if r.get_coverage() < min_depth { continue; } // Output filtering: CpG coverage should be >= min_depth.
+        writeln!(out, "{}\t{}\t{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, pdr, n_concordant, n_discordant)
             .ok()
             .expect("Error writing to output file.");
     }
@@ -116,11 +140,12 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_cpgs: usize, m
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
-    let mut pdr_result: HashMap<readutil::CpGPosition, PDRResult> = HashMap::new();
+    let mut cpg2reads: HashMap<readutil::CpGPosition, PDRResult> = HashMap::new();
 
     let mut readcount = 0;
     let mut valid_readcount = 0;
 
+    let mut result: BTreeMap<readutil::CpGPosition, (f32, u32, u32)> = BTreeMap::new();
     let bar = progressbar::ProgressBar::new();
 
     for r in reader.records().map(|r| r.unwrap()) {
@@ -132,11 +157,30 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_cpgs: usize, m
 
         let mut cpg_positions = br.get_cpg_positions();
 
+        match br.get_first_cpg_position() {
+            Some(first_cpg_position) => {
+                cpg2reads.retain(|&cpg, reads| {
+                    let retain = {
+                        if (cpg < first_cpg_position) && (reads.get_coverage() >= min_depth) {
+                            result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
+                            false
+                        } else {
+                            true
+                        }
+                    };
+                    retain
+                }); // Finalize and compute metric for the CpGs before the first CpG in this read.
+            }
+            None => {}
+        }
+
+        let concordance_state = br.get_concordance_state();
+
         for cpg_position in cpg_positions.iter_mut() {
-            let r = pdr_result.entry(*cpg_position)
+            let r = cpg2reads.entry(*cpg_position)
                             .or_insert(PDRResult::new(*cpg_position));
             
-            match br.get_concordance_state() {
+            match concordance_state {
                 readutil::ReadConcordanceState::Concordant => r.inc_concordant(),
                 readutil::ReadConcordanceState::Discordant => r.inc_discordant(),
             }
@@ -145,15 +189,19 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_cpgs: usize, m
         valid_readcount += 1;
         if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
-    
-    let mut results: Vec<&PDRResult> = pdr_result.values().collect::<Vec<&PDRResult>>();
-    results.sort();
+
+    for (&cpg, reads) in cpg2reads.iter() {
+        if reads.get_coverage() >= min_depth {
+            result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
+        }
+    }
 
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
 
-    for r in results {
-        if r.get_coverage() < min_depth { continue; } // Output filtering: CpG coverage should be >= min_depth.
-        writeln!(out, "{}", r.to_bedgraph_field(&header))
+    for (cpg, (pdr, n_concordant, n_discordant)) in result.iter() {
+        let chrom = bamutil::tid2chrom(cpg.tid, &header);
+        // if r.get_coverage() < min_depth { continue; } // Output filtering: CpG coverage should be >= min_depth.
+        writeln!(out, "{}\t{}\t{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, pdr, n_concordant, n_discordant)
             .ok()
             .expect("Error writing to output file.");
     }

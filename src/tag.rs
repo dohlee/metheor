@@ -96,10 +96,7 @@ pub fn run(input: &str, output: &str, genome: &str) {
 
     let mut writer = bam::Writer::from_path(&output, &header_, bam::Format::Bam).ok().expect("Error opening BAM file to write.");
 
-    let mut num_read = 0;
     for mut r in reader.records().map(|r| r.unwrap()) {
-        num_read += 1;
-
         let tid = r.tid();
         let start = r.reference_start() as usize;
         let end = r.reference_end() as usize;
@@ -139,14 +136,14 @@ pub fn run(input: &str, output: &str, genome: &str) {
                 },
                 Cigar::Ins(length) => {
                     tmp_read_seq.append(&mut read_seq.chars().skip(used_read_len).take(*length as usize).collect());
-                    for i in 0..*length {
+                    for _ in 0..*length {
                         tmp_ref_seq.push('-');
                     }
 
                     used_read_len += *length as usize;
                 },
                 Cigar::Del(length) => {
-                    for i in 0..*length {
+                    for _ in 0..*length {
                         tmp_read_seq.push('-');
                     }
                     tmp_ref_seq.append(&mut ref_seq.chars().skip(used_ref_len).take(*length as usize).collect());
