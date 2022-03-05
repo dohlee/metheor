@@ -25,11 +25,11 @@ fn main() {
         metheor::Commands::Me { input, output, min_depth, min_qual, cpg_set } => {
             me::compute(input, output, *min_depth, *min_qual, cpg_set);
         }
-        metheor::Commands::Fdrp { input, output, min_qual, max_depth, min_overlap, cpg_set } => {
-            fdrp::compute(input, output, *min_qual, *max_depth, *min_overlap, cpg_set);
+        metheor::Commands::Fdrp { input, output, min_qual, min_depth, max_depth, min_overlap, cpg_set } => {
+            fdrp::compute(input, output, *min_qual, *min_depth, *max_depth, *min_overlap, cpg_set);
         }
-        metheor::Commands::Qfdrp { input, output, min_qual, max_depth, min_overlap, cpg_set } => {
-            qfdrp::compute(input, output, *min_qual, *max_depth, *min_overlap, cpg_set);
+        metheor::Commands::Qfdrp { input, output, min_qual, min_depth, max_depth, min_overlap, cpg_set } => {
+            qfdrp::compute(input, output, *min_qual, *min_depth, *max_depth, *min_overlap, cpg_set);
         }
         metheor::Commands::Mhl { input, output, min_depth, min_cpgs, min_qual, cpg_set } => {
             mhl::compute(input, output, *min_depth, *min_cpgs, *min_qual, cpg_set);

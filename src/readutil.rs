@@ -300,23 +300,28 @@ fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
     return cpgs
 }
 
-pub fn get_target_cpgs(cpg_set: &str, header: &bam::HeaderView) -> HashSet<CpGPosition> {
-    eprint!("Processing target CpG set... ");
-    let mut target_cpgs: HashSet<CpGPosition> = HashSet::new();
-    
-    let contents = fs::read_to_string(cpg_set)
-                    .expect("Could not read target CpG file.");
-    
-    for line in contents.lines() {
-        let tokens: Vec<&str> = line.split("\t").collect();
-    
-        let chrom = tokens[0];
-        let pos = tokens[1].parse::<i32>().unwrap();
+pub fn get_target_cpgs(cpg_set: &Option<String>, header: &bam::HeaderView) -> Option<HashSet<CpGPosition>> {
+    match cpg_set {
+        Some(cpg_set) => {
+            eprint!("Processing target CpG set... ");
+            let mut target_cpgs: HashSet<CpGPosition> = HashSet::new();
+            
+            let contents = fs::read_to_string(cpg_set)
+                            .expect("Could not read target CpG file.");
+            
+            for line in contents.lines() {
+                let tokens: Vec<&str> = line.split("\t").collect();
+            
+                let chrom = tokens[0];
+                let pos = tokens[1].parse::<i32>().unwrap();
+                
+                target_cpgs.insert(CpGPosition{ tid: bamutil::chrom2tid(chrom.as_bytes(), header) as i32, pos: pos });
+            }
         
-        target_cpgs.insert(CpGPosition{ tid: bamutil::chrom2tid(chrom.as_bytes(), header) as i32, pos: pos });
+            Some(target_cpgs)
+        }
+        None => None,
     }
-
-    target_cpgs
 }
 
 #[cfg(test)]

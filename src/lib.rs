@@ -109,16 +109,20 @@ pub enum Commands {
         #[clap(long, short='q', default_value_t=10, display_order=3)]
         min_qual: u8,
 
+        /// Minimum number of reads mapped to a CpG in order to be considered.
+        #[clap(long, short='n', default_value_t=10, display_order=4)]
+        min_depth: usize,
+
         /// Maximum number of reads to consider.
-        #[clap(long, short='n', default_value_t=40, display_order=4)]
+        #[clap(long, short='n', default_value_t=40, display_order=5)]
         max_depth: usize,
 
         /// Minimum overlap between two reads to consider in bp.
-        #[clap(long, short='l', default_value_t=35, display_order=5)]
+        #[clap(long, short='l', default_value_t=35, display_order=6)]
         min_overlap: i32,
 
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
-        #[clap(long, short='c', required=false, display_order=6)]
+        #[clap(long, short='c', required=false, display_order=7)]
         cpg_set: Option<String>,
     },
     /// Compute quantitative fraction of discordant read pairs (qFDRP).
@@ -136,16 +140,20 @@ pub enum Commands {
         #[clap(long, short='q', default_value_t=10, display_order=3)]
         min_qual: u8,
 
+        /// Minimum number of reads mapped to a CpG in order to be considered.
+        #[clap(long, short='n', default_value_t=10, display_order=4)]
+        min_depth: usize,
+
         /// Maximum number of reads to consider.
-        #[clap(long, short='n', default_value_t=40, display_order=4)]
+        #[clap(long, short='n', default_value_t=40, display_order=5)]
         max_depth: usize,
 
         /// Minimum overlap between two reads to consider in bp.
-        #[clap(long, short='l', default_value_t=35, display_order=5)]
+        #[clap(long, short='l', default_value_t=35, display_order=6)]
         min_overlap: i32,
 
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
-        #[clap(long, short='c', required=false, display_order=6)]
+        #[clap(long, short='c', required=false, display_order=7)]
         cpg_set: Option<String>,
     },
     /// Compute methylation haplotype load (MHL).

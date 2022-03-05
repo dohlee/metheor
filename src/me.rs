@@ -6,7 +6,7 @@ use std::collections::{HashMap};
 
 use crate::{readutil, bamutil, progressbar};
 
-struct QuartetStat {
+pub struct QuartetStat {
     pos1: readutil::CpGPosition,
     pos2: readutil::CpGPosition,
     pos3: readutil::CpGPosition,
@@ -50,44 +50,13 @@ impl QuartetStat {
 }
 
 pub fn compute(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set: &Option<String>) {
-    match cpg_set {
-        Some(cpg_set) => compute_subset(input, output, min_depth, min_qual, cpg_set),
-        None => compute_all(input, output, min_depth, min_qual),
-    }
-}
-
-pub fn compute_all(input: &str, output: &str, min_depth: u32, min_qual: u8) {
-    let mut reader = bamutil::get_reader(&input);
+    let reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
-    let mut quartet2stat: HashMap<readutil::Quartet, QuartetStat> = HashMap::new();
-
-    let mut readcount = 0;
-    let mut valid_readcount = 0;
-
-    let bar = progressbar::ProgressBar::new();
-
-    for r in reader.records().map(|r| r.unwrap()) {
-        let br = readutil::BismarkRead::new(&r);
-
-        readcount += 1;
-        
-        if r.mapq() < min_qual { continue; }
-        valid_readcount += 1;
-
-        let (quartets, patterns) = br.get_cpg_quartets_and_patterns();
-        for (q, p) in quartets.iter().zip(patterns.iter()) {
-            let stat = quartet2stat.entry(*q)
-                        .or_insert(QuartetStat::new(*q));
-
-            stat.add_quartet_pattern(*p);
-        }
-
-        if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
-    }
+    let result = compute_helper(input, min_qual, cpg_set);
 
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
-    for stat in quartet2stat.values() {
+    for stat in result.values() {
         if stat.get_read_depth() < min_depth { continue; }
         writeln!(out, "{}", stat.to_bedgraph_field(&header))
             .ok()
@@ -95,11 +64,11 @@ pub fn compute_all(input: &str, output: &str, min_depth: u32, min_qual: u8) {
     }
 }
 
-pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set: &str) {
+pub fn compute_helper(input: &str, min_qual: u8, cpg_set: &Option<String>) -> HashMap<readutil::Quartet, QuartetStat> {
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
     
-    let target_cpgs = readutil::get_target_cpgs(cpg_set, &header);
+    let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
     let mut quartet2stat: HashMap<readutil::Quartet, QuartetStat> = HashMap::new();
 
     let mut readcount = 0;
@@ -109,7 +78,11 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_qual: u8, c
 
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
-        br.filter_isin(&target_cpgs);
+
+        match target_cpgs {
+            Some(target_cpgs) => br.filter_isin(target_cpgs),
+            None => {}
+        }
 
         readcount += 1;
         
@@ -126,12 +99,5 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_qual: u8, c
 
         if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
-
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
-    for stat in quartet2stat.values() {
-        if stat.get_read_depth() < min_depth { continue; }
-        writeln!(out, "{}", stat.to_bedgraph_field(&header))
-            .ok()
-            .expect("Error writing to output file.");
-    }
+    quartet2stat
 }

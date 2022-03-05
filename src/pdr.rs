@@ -53,17 +53,26 @@ impl Ord for PDRResult {
 }
 
 pub fn compute(input: &str, output: &str, min_depth: u32, min_cpgs: usize, min_qual: u8, cpg_set: &Option<String>) {
-    match cpg_set {
-        Some(cpg_set) => compute_subset(input, output, min_depth, min_cpgs, min_qual, cpg_set),
-        None => compute_all(input, output, min_depth, min_cpgs, min_qual),
+    let reader = bamutil::get_reader(&input);
+    let header = bamutil::get_header(&reader);
+
+    let result = compute_helper(input, min_depth, min_cpgs, min_qual, cpg_set);
+
+    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
+    for (cpg, (pdr, n_concordant, n_discordant)) in result.iter() {
+        let chrom = bamutil::tid2chrom(cpg.tid, &header);
+
+        writeln!(out, "{}\t{}\t{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, pdr, n_concordant, n_discordant)
+            .ok()
+            .expect("Error writing to output file.");
     }
 }
 
-pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_cpgs: usize, min_qual: u8, cpg_set: &str) {
+pub fn compute_helper(input: &str, min_depth: u32, min_cpgs: usize, min_qual: u8, cpg_set: &Option<String>) -> BTreeMap<readutil::CpGPosition, (f32, u32, u32)>{
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
-    let target_cpgs = readutil::get_target_cpgs(cpg_set, &header);
+    let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
 
     let mut cpg2reads: HashMap<readutil::CpGPosition, PDRResult> = HashMap::new();
 
@@ -75,7 +84,11 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_cpgs: usize
 
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
-        br.filter_isin(&target_cpgs);
+
+        match target_cpgs {
+            Some(target_cpgs) => br.filter_isin(target_cpgs), // cpg_set is specified
+            None => {} // cpg_set is not specified
+        }
 
         readcount += 1;
         if br.get_num_cpgs() < min_cpgs { continue; }
@@ -84,26 +97,25 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_cpgs: usize
         let mut cpg_positions = br.get_cpg_positions();
         if cpg_positions.len() == 0 { continue; } // Read filtering: Ignore reads without CpGs.
 
-        for cpg_position in cpg_positions.iter_mut() {
+        match br.get_first_cpg_position() {
+            Some(first_cpg_position) => {
+                cpg2reads.retain(|&cpg, reads| {
+                    let retain = {
+                        if (cpg < first_cpg_position) && (reads.get_coverage() >= min_depth) {
+                            result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
 
-            match br.get_first_cpg_position() {
-                Some(first_cpg_position) => {
-                    cpg2reads.retain(|&cpg, reads| {
-                        let retain = {
-                            if (cpg < first_cpg_position) && (reads.get_coverage() >= min_depth) {
-                                result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
-
-                                false
-                            } else {
-                                true
-                            }
-                        };
-                        retain
-                    }); // Finalize and compute metric for the CpGs before the first CpG in this read.
-                }
-                None => {}
+                            false
+                        } else {
+                            true
+                        }
+                    };
+                    retain
+                }); // Finalize and compute metric for the CpGs before the first CpG in this read.
             }
+            None => {}
+        }
 
+        for cpg_position in cpg_positions.iter_mut() {
             let r = cpg2reads.entry(*cpg_position)
                             .or_insert(PDRResult::new(*cpg_position));
 
@@ -124,85 +136,5 @@ pub fn compute_subset(input: &str, output: &str, min_depth: u32, min_cpgs: usize
             result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
         }
     }
-
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
-
-    for (cpg, (pdr, n_concordant, n_discordant)) in result.iter() {
-        let chrom = bamutil::tid2chrom(cpg.tid, &header);
-        // if r.get_coverage() < min_depth { continue; } // Output filtering: CpG coverage should be >= min_depth.
-        writeln!(out, "{}\t{}\t{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, pdr, n_concordant, n_discordant)
-            .ok()
-            .expect("Error writing to output file.");
-    }
-}
-
-pub fn compute_all(input: &str, output: &str, min_depth: u32, min_cpgs: usize, min_qual: u8) {
-    let mut reader = bamutil::get_reader(&input);
-    let header = bamutil::get_header(&reader);
-
-    let mut cpg2reads: HashMap<readutil::CpGPosition, PDRResult> = HashMap::new();
-
-    let mut readcount = 0;
-    let mut valid_readcount = 0;
-
-    let mut result: BTreeMap<readutil::CpGPosition, (f32, u32, u32)> = BTreeMap::new();
-    let bar = progressbar::ProgressBar::new();
-
-    for r in reader.records().map(|r| r.unwrap()) {
-        let br = readutil::BismarkRead::new(&r);
-
-        readcount += 1;
-        if br.get_num_cpgs() < min_cpgs { continue; } // Read filtering: Ignore reads with number of CpGs less than min_cpgs.
-        if r.mapq() < min_qual { continue; } // Read filtering: Minimum quality should be >= min_qual.
-
-        let mut cpg_positions = br.get_cpg_positions();
-
-        match br.get_first_cpg_position() {
-            Some(first_cpg_position) => {
-                cpg2reads.retain(|&cpg, reads| {
-                    let retain = {
-                        if (cpg < first_cpg_position) && (reads.get_coverage() >= min_depth) {
-                            result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
-                            false
-                        } else {
-                            true
-                        }
-                    };
-                    retain
-                }); // Finalize and compute metric for the CpGs before the first CpG in this read.
-            }
-            None => {}
-        }
-
-        let concordance_state = br.get_concordance_state();
-
-        for cpg_position in cpg_positions.iter_mut() {
-            let r = cpg2reads.entry(*cpg_position)
-                            .or_insert(PDRResult::new(*cpg_position));
-            
-            match concordance_state {
-                readutil::ReadConcordanceState::Concordant => r.inc_concordant(),
-                readutil::ReadConcordanceState::Discordant => r.inc_discordant(),
-            }
-        }
-        
-        valid_readcount += 1;
-        if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
-    }
-
-    for (&cpg, reads) in cpg2reads.iter() {
-        if reads.get_coverage() >= min_depth {
-            result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
-        }
-    }
-
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
-
-    for (cpg, (pdr, n_concordant, n_discordant)) in result.iter() {
-        let chrom = bamutil::tid2chrom(cpg.tid, &header);
-        // if r.get_coverage() < min_depth { continue; } // Output filtering: CpG coverage should be >= min_depth.
-        writeln!(out, "{}\t{}\t{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, pdr, n_concordant, n_discordant)
-            .ok()
-            .expect("Error writing to output file.");
-    }
+    result
 }

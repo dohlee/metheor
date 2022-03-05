@@ -129,15 +129,8 @@ impl AssociatedReads {
     }
 }
 
-pub fn compute(input: &str, output: &str, min_qual: u8, max_depth: usize, min_overlap: i32, cpg_set: &Option<String>) {
-    match cpg_set {
-        Some(cpg_set) => run_subset(input, output, min_qual, max_depth, min_overlap, cpg_set),
-        None => run_all(input, output, min_qual, max_depth, min_overlap),
-    }
-}
-
-fn run_all(input: &str, output: &str, min_qual: u8, max_depth: usize, min_overlap: i32) {
-    let result = compute_all(input, min_qual, max_depth, min_overlap);
+pub fn compute(input: &str, output: &str, min_qual: u8, min_depth: usize, max_depth: usize, min_overlap: i32, cpg_set: &Option<String>) {
+    let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, cpg_set);
 
     let reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
@@ -151,76 +144,7 @@ fn run_all(input: &str, output: &str, min_qual: u8, max_depth: usize, min_overla
     }
 }
 
-fn run_subset(input: &str, output: &str, min_qual: u8, max_depth: usize, min_overlap: i32, cpg_set: &str) {
-    let result = compute_subset(input,min_qual, max_depth, min_overlap, cpg_set);
-
-    let reader = bamutil::get_reader(&input);
-    let header = bamutil::get_header(&reader);
-
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
-    for (cpg, fdrp) in result.iter() {
-        let chrom = bamutil::tid2chrom(cpg.tid, &header);
-        writeln!(out, "{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, fdrp)
-            .ok()
-            .expect("Error writing to output file.");
-    }
-}
-
-fn compute_all(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32) -> BTreeMap<readutil::CpGPosition, f32> {
-    let mut reader = bamutil::get_reader(&input);
-
-    let mut readcount = 0;
-    let mut valid_readcount = 0;
-
-    let bar = progressbar::ProgressBar::new();
-
-    let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
-    let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
-
-    for r in reader.records().map(|r| r.unwrap()) {
-        let br = readutil::BismarkRead::new(&r);
-
-        readcount += 1;
-        if r.mapq() < min_qual { continue; }
-        if br.get_num_cpgs() == 0 { continue; }
-
-        match br.get_first_cpg_position() {
-            Some(first_cpg_position) => {
-                cpg2reads.retain(|&cpg, reads| {
-                    let retain = {
-                        if cpg < first_cpg_position {
-                            result.insert(cpg, reads.compute_qfdrp(min_overlap));
-                            false
-                        } else {
-                            true
-                        }
-                    };
-                    retain
-                }); // Finalize and compute metric for the CpGs before the first CpG in this read.
-            }
-            None => {}
-        }
-
-        for cpg_position in br.get_cpg_positions().iter() {
-            let r = cpg2reads.entry(*cpg_position)
-                        .or_insert(AssociatedReads::new(*cpg_position, max_depth));
-
-            r.add_read(&br);
-        }
-        valid_readcount += 1;
-        if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
-    }
-
-    let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
-
-    for (cpg, reads) in cpg2reads.iter_mut() {
-        result.insert(*cpg, reads.compute_qfdrp(min_overlap));
-    }
-
-    result
-}
-
-fn compute_subset(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32, cpg_set: &str) -> BTreeMap<readutil::CpGPosition, f32> {
+fn compute_helper(input: &str, min_qual: u8, min_depth: usize, max_depth: usize, min_overlap: i32, cpg_set: &Option<String>) -> BTreeMap<readutil::CpGPosition, f32> {
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
@@ -229,26 +153,27 @@ fn compute_subset(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32,
 
     let bar = progressbar::ProgressBar::new();
 
-    let target_cpgs = readutil::get_target_cpgs(cpg_set, &header);
+    let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
 
     let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
     let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
 
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
-        br.filter_isin(&target_cpgs);
+        match target_cpgs {
+            Some(target_cpgs) => br.filter_isin(target_cpgs),
+            None => {}
+        }
 
         readcount += 1;
         if r.mapq() < min_qual { continue; }
         if br.get_num_cpgs() == 0 { continue; }
 
-        
-
         match br.get_first_cpg_position() {
             Some(first_cpg_position) => {
                 cpg2reads.retain(|&cpg, reads| {
                     let retain = {
-                        if cpg < first_cpg_position {
+                        if (cpg < first_cpg_position) && (reads.get_num_reads() >= min_depth) {
                             result.insert(cpg, reads.compute_qfdrp(min_overlap));
                             false
                         } else {

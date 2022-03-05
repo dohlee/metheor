@@ -3,7 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::vec::Vec;
 use std::str;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap};
 
 use crate::{readutil, bamutil, progressbar};
 
@@ -102,26 +102,10 @@ impl LPMDResult {
     }
 }
 
-pub fn compute(input: &str, output: &str, min_distance: i32, max_distance: i32, min_qual: u8, cpg_set: &Option<String>, pairs: &Option<String>) -> LPMDResult {
+pub fn compute(input: &str, output: &str, min_distance: i32, max_distance: i32, min_qual: u8, cpg_set: &Option<String>, pairs: &Option<String>) {
+    let result = compute_helper(input, min_distance, max_distance, min_qual, cpg_set);
+    let lpmd = result.compute_lpmd();
 
-    match cpg_set {
-        Some(cpg_set) => run_subset(input, output, min_distance, max_distance, min_qual, &cpg_set, pairs),
-        None => run_all(input, output, min_distance, max_distance, min_qual, pairs),
-    }
-
-    // if cpg_set.is_empty() {
-        // run_all(input, output, min_distance, max_distance, min_qual)
-    // } else {
-        // run_subset(input, output, min_distance, max_distance, cpg_set, min_qual)
-    // }
-}
-
-fn run_all(input: &str, output: &str, min_distance: i32, max_distance: i32, min_qual: u8, pairs: &Option<String>) -> LPMDResult {
-    eprintln!("Computing LPMD with parameters input={}, output={}, min_distance={}, max_distance={}", input, output, min_distance, max_distance);
-
-    let res = compute_all(input, min_distance, max_distance, min_qual);
-
-    let lpmd: f32 = res.compute_lpmd();
     let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
 
     writeln!(out, "name\tlpmd")
@@ -133,91 +117,20 @@ fn run_all(input: &str, output: &str, min_distance: i32, max_distance: i32, min_
         .expect("Error writing to output file.");
 
     match pairs {
-        Some(f) => res.print_pair_statistics(f),
+        Some(f) => result.print_pair_statistics(f),
         None => (),
     }
-
-    res
 }
 
-fn run_subset(input: &str, output: &str, min_distance: i32, max_distance: i32, min_qual: u8, cpg_set: &str, pairs: &Option<String>) -> LPMDResult {
-    eprintln!("Computing subset-LPMD with parameters input={}, output={}, min_distance={}, max_distance={}", input, output, min_distance, max_distance);
-    let reader = bamutil::get_reader(&input);
+fn compute_helper(input: &str, min_distance: i32, max_distance: i32, min_qual: u8, cpg_set: &Option<String>) -> LPMDResult {
+    eprintln!("Computing subset-LPMD with parameters input={}, min_distance={}, max_distance={}", input, min_distance, max_distance);
+    let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
     eprint!("Processing target CpG set... ");
-    let mut target_cpgs: HashSet<readutil::CpGPosition> = HashSet::new();
+    let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
 
-    let contents = fs::read_to_string(cpg_set)
-                    .expect("Could not read target CpG file.");
-
-    for line in contents.lines() {
-        let tokens: Vec<&str> = line.split("\t").collect();
-
-        let chrom = tokens[0];
-        let pos = tokens[1].parse::<i32>().unwrap();
-        
-        target_cpgs.insert(readutil::CpGPosition{ tid: bamutil::chrom2tid(chrom.as_bytes(), &header) as i32, pos: pos });
-    }
-
-    eprintln!("Analyzing {} CpGs in total.", target_cpgs.len());
-
-    let res = compute_subset(input, min_distance, max_distance, &target_cpgs, min_qual);
-    let lpmd = res.compute_lpmd();
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
-
-    writeln!(out, "name\tlpmd")
-        .ok()
-        .expect("Error writing to output file.");
-
-    writeln!(out, "{}\t{}", input, lpmd)
-        .ok()
-        .expect("Error writing to output file.");
-
-    match pairs {
-        Some(f) => res.print_pair_statistics(f),
-        None => (),
-    }
-
-    res
-}
-
-fn compute_all(input: &str, min_distance: i32, max_distance: i32, min_qual: u8) -> LPMDResult {
-    let mut reader = bamutil::get_reader(&input);
-    let header = bamutil::get_header(&reader);
     let mut res = LPMDResult::new(header);
-
-    let bar = progressbar::ProgressBar::new();
-
-    for r in reader.records().map(|r| r.unwrap()) {
-        res.inc_n_read(1);
-        if r.mapq() < min_qual { continue; }
-
-        let br = readutil::BismarkRead::new(&r);
-        let (c, d, pair2concordance) = br.compute_pairwise_cpg_concordance_discordance(min_distance, max_distance);
-        
-        res.inc_n_valid_read(1);
-        res.inc_n_concordant(c);
-        res.inc_n_discordant(d);
-        for (cpg1, cpg2, concordance) in &pair2concordance {
-            res.add_pair_concordance(cpg1, cpg2, concordance);
-        }
-
-        if res.n_read % 10000 == 0 {
-            bar.update_lpmd(res.progress_string());
-        }
-    }
-    // bar.finish_with_message(res.done_string(HumanDuration(bar.elapsed())));
-
-    res
-}
-
-fn compute_subset(input: &str, min_distance: i32, max_distance: i32, target_cpgs: &HashSet<readutil::CpGPosition>, min_qual: u8) -> LPMDResult {
-    let mut reader = bamutil::get_reader(&input);
-    let header = bamutil::get_header(&reader);
-    let mut res = LPMDResult::new(header);
-    // let _flag_counter: HashMap<u16, i32> = HashMap::new();
-
     let bar = progressbar::ProgressBar::new();
 
     // Iterate over reads and compute LPMD.
@@ -226,7 +139,10 @@ fn compute_subset(input: &str, min_distance: i32, max_distance: i32, target_cpgs
         if r.mapq() < min_qual { continue; }
 
         let mut br = readutil::BismarkRead::new(&r);
-        br.filter_isin(&target_cpgs);
+        match target_cpgs {
+            Some(target_cpgs) => br.filter_isin(target_cpgs),
+            None => {}
+        }
 
         let (c, d, pair2concordance) = br.compute_pairwise_cpg_concordance_discordance(min_distance, max_distance);
 
@@ -239,114 +155,6 @@ fn compute_subset(input: &str, min_distance: i32, max_distance: i32, target_cpgs
     
         if res.n_read % 10000 == 0 { bar.update_lpmd(res.progress_string()); }
     }
-    // bar.finish_with_message(res.done_string(HumanDuration(bar.elapsed())));
 
     res
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test1() {
-        // Maximum heterogeneity.
-        let input = "tests/test1.bam";
-        let min_distance = 2;
-        let max_distance = 16;
-        let min_qual = 10;
-    
-        let res = compute_all(input, min_distance, max_distance, min_qual);
-    
-        assert_eq!(res.n_concordant, 48);
-        assert_eq!(res.n_discordant, 48);
-    }
-
-    #[test]
-    fn test2() {
-        // Half fully methylated, the other half fully unmethylated.
-        let input = "tests/test2.bam";
-        let min_distance = 2;
-        let max_distance = 16;
-        let min_qual = 10;
-    
-        let res = compute_all(input, min_distance, max_distance, min_qual);
-    
-        assert_eq!(res.n_concordant, 96);
-        assert_eq!(res.n_discordant, 0);
-    }
-
-    #[test]
-    fn test3() {
-        // Same as test2, but there are only two reads with quality >= 10.
-        let input = "tests/test3.bam";
-        let min_distance = 2;
-        let max_distance = 16;
-        let min_qual = 10;
-
-        let res = compute_all(input, min_distance, max_distance, min_qual);
-
-        assert_eq!(res.n_concordant, 12);
-        assert_eq!(res.n_discordant, 0);
-    }
-
-    #[test]
-    fn test4_all() {
-        // Similar to test1 (maximally heterogeneous methylation status),
-        // but there are two independent bunches of reads.
-        // Mimicking RRBS read clusters!
-        let input = "tests/test4.bam";
-        let min_distance = 2;
-        let max_distance = 16;
-        let min_qual = 10;
-
-        let res = compute_all(input, min_distance, max_distance, min_qual);
-
-        assert_eq!(res.n_concordant, 96);
-        assert_eq!(res.n_discordant, 96);
-    }
-
-    #[test]
-    fn test4_for_each_subset() {
-        // Similar to test4_all, but compute only for each of the first and second bunch of reads.
-        let input = "tests/test4.bam";
-        let min_distance = 2;
-        let max_distance = 16;
-        let min_qual = 10;
-
-        let mut target_cpgs: HashSet<readutil::CpGPosition> = HashSet::new();
-        let pos = Vec::from([0, 2, 4, 6]);
-        for p in pos.iter() {
-            target_cpgs.insert(readutil::CpGPosition{ tid: 0, pos: *p });
-        }
-
-        let res = compute_subset(input, min_distance, max_distance, &target_cpgs, min_qual);
-
-        assert_eq!(res.n_concordant, 48);
-        assert_eq!(res.n_discordant, 48);
-
-        let mut target_cpgs: HashSet<readutil::CpGPosition> = HashSet::new();
-        let pos = Vec::from([13, 15, 17, 19]);
-        for p in pos.iter() {
-            target_cpgs.insert(readutil::CpGPosition{ tid: 0, pos: *p });
-        }
-
-        let res = compute_subset(input, min_distance, max_distance, &target_cpgs, min_qual);
-
-        assert_eq!(res.n_concordant, 48);
-        assert_eq!(res.n_discordant, 48);
-    }
-
-    fn test5() {
-        // No valid reads.
-        let input = "tests/test5.bam";
-        let min_distance = 2;
-        let max_distance = 16;
-        let min_qual = 10;
-
-        let res = compute_all(input, min_distance, max_distance, min_qual);
-
-        assert_eq!(res.n_concordant, 0);
-        assert_eq!(res.n_discordant, 0);
-    }
 }

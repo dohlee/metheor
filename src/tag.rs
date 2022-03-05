@@ -22,10 +22,6 @@ fn reverse_complement(seq: &str, switch_base: &HashMap<char, char>) -> String {
     res
 }
 
-fn substring(seq: &str, i: usize, j: usize) -> String {
-    seq.chars().skip(i).take(j - i - 1).collect::<String>()
-}
-
 fn char_at(seq: &str, i: usize) -> char {
     seq.chars().nth(i).unwrap()
 }
@@ -269,7 +265,7 @@ pub fn run(input: &str, output: &str, genome: &str) {
             false => xm_tag.iter().collect::<String>()
         };
 
-        r.push_aux("XM".as_bytes(), Aux::String(&xm_tag_string));
+        r.push_aux("XM".as_bytes(), Aux::String(&xm_tag_string)).ok().expect("Error adding XM tag.");
         writer.write(&r).ok().expect("Error writing to output file.");
     }
 }

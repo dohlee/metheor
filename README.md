@@ -103,6 +103,8 @@ metheor fdrp --input <input.bam> --output <output.tsv>
 
 `-n, --max-depth`: Maximum number of reads to consider. [default: 40]
 
+`-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
+
 `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 **Quantative fraction of discordant read pairs (qFDRP)**
@@ -124,6 +126,28 @@ metheor qfdrp --input <input.bam> --output <output.tsv>
 `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
 
 `-n, --max-depth`: Maximum number of reads to consider. [default: 40]
+
+`-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
+
+`-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+
+**Methylation haplotype load (MHL)**
+
+```
+metheor mhl --input <input.bam> --output <output.tsv>
+    --min-depth <min-depth> --min-cpgs <min-cpgs> --min-qual <min-qual>
+    --cpg-set <cpg-set.bed>
+```
+
+`-i, --input`: Path to input BAM file.
+
+`-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
+
+`-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
+
+`-c, --min-cpgs`: Minimum number of consecutive CpGs in a CpG stretch to consider.
+
+`-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 
 `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
@@ -148,7 +172,7 @@ metheor lpmd --input <INPUT> --output <OUTPUT> [OPTIONS]
 
 `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
-## Miscellaneous
+### Miscellaneous
 
 **Add bismark `XM` tag to BAM file created with aligners other than bismark**
 ```
