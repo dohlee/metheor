@@ -215,19 +215,19 @@ mod tests {
     fn test1() {
         let input = "tests/test1.bam";
     }
-
+    #[test]
     fn test2() {
         let input = "tests/test2.bam";
     }
-
+    #[test]
     fn test3() {
         let input = "tests/test3.bam";
     }
-
+    #[test]
     fn test4() {
         let input = "tests/test4.bam";
     }
-
+    #[test]
     fn test5() {
         let input = "tests/test5.bam";
     }

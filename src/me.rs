@@ -34,16 +34,22 @@ impl QuartetStat {
         self.quartet_pattern_counts[p] += 1;
     }
 
-    fn to_bedgraph_field(&self, header: &bam::HeaderView) -> String {
-        let chrom = bamutil::tid2chrom(self.pos1.tid, header);
+    fn compute_me(&self) -> f32 {
         let mut me: f32 = 0.0;
 
         let total: u32 = self.quartet_pattern_counts.iter().sum();
-        for count in self.quartet_pattern_counts.iter() {
+        for (i, count) in self.quartet_pattern_counts.iter().enumerate() {
             let p: f32 = (*count as f32) / (total as f32);
             if *count > 0 { me += p * p.log2(); }
         }
         me *= -0.25;
+
+        me
+    }
+
+    fn to_bedgraph_field(&self, header: &bam::HeaderView) -> String {
+        let chrom = bamutil::tid2chrom(self.pos1.tid, header);
+        let me = self.compute_me();
 
         format!("{}\t{}\t{}\t{}\t{}\t{}", chrom, self.pos1.pos, self.pos2.pos, self.pos3.pos, self.pos4.pos, me)
     }
@@ -100,4 +106,81 @@ pub fn compute_helper(input: &str, min_qual: u8, cpg_set: &Option<String>) -> Ha
         if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
     quartet2stat
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::bamutil;
+
+    #[test]
+    fn test1() {
+        let input = "tests/test1.bam";
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+
+        assert_eq!(quartet2stat.len(), 1);
+
+        for (quartet, reads) in quartet2stat.iter() {
+            assert_eq!(reads.get_read_depth(), 16);
+            assert_eq!(reads.compute_me(), 1.0);
+        }
+    }
+
+    #[test]
+    fn test2() {
+        let input = "tests/test2.bam";
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+
+        assert_eq!(quartet2stat.len(), 1);
+
+        for (quartet, reads) in quartet2stat.iter() {
+            assert_eq!(reads.compute_me(), 0.25);
+        }
+    }
+    #[test]
+    fn test3() {
+        let input = "tests/test3.bam";
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+
+        assert_eq!(quartet2stat.len(), 1);
+
+        for (quartet, reads) in quartet2stat.iter() {
+            assert_eq!(reads.compute_me(), 0.25);
+        }
+    }
+    #[test]
+    fn test4() {
+        let input = "tests/test4.bam";
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+
+        assert_eq!(quartet2stat.len(), 2);
+
+        for (quartet, reads) in quartet2stat.iter() {
+            assert_eq!(reads.compute_me(), 1.0);
+        }
+    }
+    #[test]
+    fn test5() {
+        let input = "tests/test5.bam";
+
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+
+        assert_eq!(quartet2stat.len(), 0);
+    }
 }

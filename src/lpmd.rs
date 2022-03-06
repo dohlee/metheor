@@ -158,3 +158,71 @@ fn compute_helper(input: &str, min_distance: i32, max_distance: i32, min_qual: u
 
     res
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::bamutil;
+
+    #[test]
+    fn test1() {
+        let input = "tests/test1.bam";
+
+        let min_distance = 2;
+        let max_distance = 16;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+
+        assert_eq!(result.compute_lpmd(), 0.5);
+    }
+    #[test]
+    fn test2() {
+        let input = "tests/test2.bam";
+        let min_distance = 2;
+        let max_distance = 16;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+
+        assert_eq!(result.compute_lpmd(), 0.0);
+    }
+    #[test]
+    fn test3() {
+        let input = "tests/test3.bam";
+        let min_distance = 2;
+        let max_distance = 16;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+
+        assert_eq!(result.compute_lpmd(), 0.0);
+    }
+    #[test]
+    fn test4() {
+        let input = "tests/test4.bam";
+        let min_distance = 2;
+        let max_distance = 16;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+
+        assert_eq!(result.compute_lpmd(), 0.5);
+    }
+    #[test]
+    fn test5() {
+        let input = "tests/test5.bam";
+        let min_distance = 2;
+        let max_distance = 16;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+
+        assert!(result.compute_lpmd().is_nan());
+    }
+}

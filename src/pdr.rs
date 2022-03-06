@@ -138,3 +138,117 @@ pub fn compute_helper(input: &str, min_depth: u32, min_cpgs: usize, min_qual: u8
     }
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::bamutil;
+
+    #[test]
+    fn test1() {
+        let input = "tests/test1.bam";
+        let min_depth = 0;
+        let min_cpgs = 0;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let target_pdrs = [14.0 / 16.0; 4];
+        let target_n_concordant = [2; 4];
+        let target_n_discordant = [14; 4];
+
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+
+        assert_eq!(result.len(), 4);
+        for (i, (cpg, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
+            assert_eq!(*pdr, target_pdrs[i]);
+            assert_eq!(*n_concordant, target_n_concordant[i]);
+            assert_eq!(*n_discordant, target_n_discordant[i]);
+        }
+    }
+
+    #[test]
+    fn test2() {
+        let input = "tests/test2.bam";
+        let min_depth = 0;
+        let min_cpgs = 0;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let target_pdrs = [0.0; 4];
+        let target_n_concordant = [16; 4];
+        let target_n_discordant = [0; 4];
+
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+
+        assert_eq!(result.len(), 4);
+        for (i, (cpg, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
+            assert_eq!(*pdr, target_pdrs[i]);
+            assert_eq!(*n_concordant, target_n_concordant[i]);
+            assert_eq!(*n_discordant, target_n_discordant[i]);
+        }
+    }
+
+    #[test]
+    fn test3() {
+        let input = "tests/test3.bam";
+
+        let min_depth = 0;
+        let min_cpgs = 0;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let target_pdrs = [0.0; 4];
+        let target_n_concordant = [2; 4];
+        let target_n_discordant = [0; 4];
+
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+
+        assert_eq!(result.len(), 4);
+        for (i, (cpg, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
+            assert_eq!(*pdr, target_pdrs[i]);
+            assert_eq!(*n_concordant, target_n_concordant[i]);
+            assert_eq!(*n_discordant, target_n_discordant[i]);
+        }
+    }
+
+    #[test]
+    fn test4() {
+        let input = "tests/test4.bam";
+
+        let min_depth = 0;
+        let min_cpgs = 0;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let target_pdrs = [14.0 / 16.0; 8];
+        let target_n_concordant = [2; 8];
+        let target_n_discordant = [14; 8];
+
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+
+        assert_eq!(result.len(), 8);
+        for (i, (cpg, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
+            assert_eq!(*pdr, target_pdrs[i]);
+            assert_eq!(*n_concordant, target_n_concordant[i]);
+            assert_eq!(*n_discordant, target_n_discordant[i]);
+        }
+    }
+
+    #[test]
+    fn test5() {
+        let input = "tests/test5.bam";
+
+        let min_depth = 0;
+        let min_cpgs = 0;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let target_pdrs = [14.0 / 16.0; 8];
+        let target_n_concordant = [2; 8];
+        let target_n_discordant = [14; 8];
+
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+
+        assert_eq!(result.len(), 0);
+    }
+}
