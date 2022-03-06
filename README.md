@@ -30,17 +30,12 @@ metheor pdr --input <input.bam> --output <output.tsv>
 
 *Options*
 
-`-i, --input`: Path to input BAM file.
-
-`-o, --output`: Path to output table file summarizing the result of PDR calculation.
-
-`-d, --min-depth`: Minimum depth of CpG stretches to consider. [default: 10]
-
-`-p, --min-cpgs`: Minimum number of consecutive CpGs in a CpG stretch to consider. [default: 10]
-
-`-q, --min-qual`: Minimum quality for a read to be considered [default: 10]
-
-`-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output table file summarizing the result of PDR calculation.
+- `-d, --min-depth`: Minimum depth of CpG stretches to consider. [default: 10]
+- `-p, --min-cpgs`: Minimum number of consecutive CpGs in a CpG stretch to consider. [default: 10]
+- `-q, --min-qual`: Minimum quality for a read to be considered [default: 10]
+- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 **Methylation entropy (ME)**
 
@@ -52,16 +47,11 @@ metheor me --input <INPUT> --output <OUTPUT>
 
 *Options*
 
-`-i, --input`: Path to input BAM file.
-
-`-o, --output`: Path to output table file summarizing the result of ME calculation.
-
-`-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
-
-`-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
-
-`-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
-
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output table file summarizing the result of ME calculation.
+- `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
+- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
+- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 **Epipolymorphism (PM)**
 
@@ -73,15 +63,11 @@ metheor pm --input <input.bam> --output <output.tsv>
 
 *Options*
 
-`-i, --input`: Path to input BAM file.
-
-`-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
-
-`-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
-
-`-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
-
-`-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
+- `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
+- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
+- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 **Fraction of discordant read pairs (FDRP)**
 
@@ -93,19 +79,13 @@ metheor fdrp --input <input.bam> --output <output.tsv>
 
 *Options*
 
-`-i, --input`: Path to input BAM file.
-
-`-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
-
-`-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
-
-`-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
-
-`-n, --max-depth`: Maximum number of reads to consider. [default: 40]
-
-`-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
-
-`-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
+- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
+- `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
+- `-n, --max-depth`: Maximum number of reads to consider. [default: 40]
+- `-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
+- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 **Quantative fraction of discordant read pairs (qFDRP)**
 
@@ -117,19 +97,13 @@ metheor qfdrp --input <input.bam> --output <output.tsv>
 
 *Options*
 
-`-i, --input`: Path to input BAM file.
-
-`-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
-
-`-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
-
-`-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
-
-`-n, --max-depth`: Maximum number of reads to consider. [default: 40]
-
-`-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
-
-`-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
+- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
+- `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
+- `-n, --max-depth`: Maximum number of reads to consider. [default: 40]
+- `-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
+- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 **Methylation haplotype load (MHL)**
 
@@ -139,17 +113,13 @@ metheor mhl --input <input.bam> --output <output.tsv>
     --cpg-set <cpg-set.bed>
 ```
 
-`-i, --input`: Path to input BAM file.
-
-`-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
-
-`-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
-
-`-c, --min-cpgs`: Minimum number of consecutive CpGs in a CpG stretch to consider.
-
-`-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
-
-`-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+*Options*
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
+- `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
+- `-c, --min-cpgs`: Minimum number of consecutive CpGs in a CpG stretch to consider.
+- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
+- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 **Local pairwise methylation disorder (LPMD)**
 ```
@@ -158,19 +128,13 @@ metheor lpmd --input <INPUT> --output <OUTPUT> [OPTIONS]
 
 *Options*
 
-`-i, --input`: Path to input BAM file.
-
-`-o, --output`: Path to output table file summarizing the result of LPMD calculation.
-
-`-p, --pairs`: (Optional) Concordance information for all CpG pairs.
-
-`-m, --min-distance`: Minimum distance between CpG pairs to consider. [default: 2]
-
-`-M, --max-distance`: Maximum distance between CpG pairs to consider. [default: 16]
-
-`-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
-
-`-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output table file summarizing the result of LPMD calculation.
+- `-p, --pairs`: (Optional) Concordance information for all CpG pairs.
+- `-m, --min-distance`: Minimum distance between CpG pairs to consider. [default: 2]
+- `-M, --max-distance`: Maximum distance between CpG pairs to consider. [default: 16]
+- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
+- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 ### Miscellaneous
 
@@ -181,8 +145,6 @@ metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
 
 *Options*
 
-`-i, --input`: Path to input BAM file.
-
-`-o, --output`: Path to output BAM file tagged with XM tag.
-
-`-g, --genome`: Path to genome fasta file.
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output BAM file tagged with XM tag.
+- `-g, --genome`: Path to genome fasta file.
