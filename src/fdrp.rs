@@ -21,15 +21,17 @@ struct AssociatedReads {
     pos: readutil::CpGPosition,
     reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]>,
     num_total_read: i32,
+    num_sampled_read: i32,
     max_depth: usize,
 }
 
 impl AssociatedReads {
     fn new(pos: readutil::CpGPosition, max_depth: usize) -> Self {
-        let reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]> = Vec::new(); 
+        let reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]> = Vec::new();
         let num_total_read = 0;
+        let num_sampled_read = 0;
 
-        Self { pos, reads, num_total_read, max_depth }
+        Self { pos, reads, num_total_read, num_sampled_read, max_depth }
     }
 
     fn get_relative_position(&self, other_pos: readutil::CpGPosition) -> usize {
@@ -37,7 +39,7 @@ impl AssociatedReads {
     }
 
     fn get_num_reads(&self) -> usize {
-        self.reads.len()
+        self.num_sampled_read as usize
     }
 
     fn add_read(&mut self, br: &readutil::BismarkRead) {
@@ -169,8 +171,10 @@ fn compute_helper(input: &str, min_qual: u8, min_depth: usize, max_depth: usize,
             Some(first_cpg_position) => {
                 cpg2reads.retain(|&cpg, reads| {
                     let retain = {
-                        if (cpg < first_cpg_position) && (reads.get_num_reads() >= min_depth) {
-                            result.insert(cpg, reads.compute_fdrp(min_overlap));
+                        if cpg < first_cpg_position {
+                            if reads.get_num_reads() >= min_depth {
+                                result.insert(cpg, reads.compute_fdrp(min_overlap));
+                            }
                             false
                         } else {
                             true
@@ -190,6 +194,13 @@ fn compute_helper(input: &str, min_qual: u8, min_depth: usize, max_depth: usize,
         }
         valid_readcount += 1;
         if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
+    }
+
+    // Flush remaining CpGs.
+    for (cpg, reads) in cpg2reads.iter_mut() {
+        if reads.get_num_reads() >= min_depth {
+            result.insert(*cpg, reads.compute_fdrp(min_overlap));
+        }
     }
 
     result

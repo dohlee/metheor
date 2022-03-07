@@ -21,6 +21,7 @@ struct AssociatedReads {
     pos: readutil::CpGPosition,
     reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]>,
     num_total_read: i32,
+    num_sampled_read: i32,
     max_depth: usize,
 }
 
@@ -28,8 +29,9 @@ impl AssociatedReads {
     fn new(pos: readutil::CpGPosition, max_depth: usize) -> Self {
         let reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]> = Vec::new();
         let num_total_read = 0;
+        let num_sampled_read = 0;
 
-        Self { pos, reads, num_total_read, max_depth }
+        Self { pos, reads, num_total_read, num_sampled_read, max_depth }
     }
 
     fn get_relative_position(&self, other_pos: readutil::CpGPosition) -> usize {
@@ -37,7 +39,7 @@ impl AssociatedReads {
     }
 
     fn get_num_reads(&self) -> usize {
-        self.reads.len()
+        self.num_sampled_read as usize
     }
 
     fn add_read(&mut self, br: &readutil::BismarkRead) {
@@ -64,6 +66,7 @@ impl AssociatedReads {
         // Fill if current reads are fewer than specified maximum depth.
         if self.num_total_read < self.max_depth as i32 {
             self.num_total_read += 1;
+            self.num_sampled_read += 1;
             self.reads.push(new_read);
         }
         // Sample jth element and replace with current read with probability 1/num_total_read.
@@ -76,10 +79,6 @@ impl AssociatedReads {
             }
         }
     }
-
-    // fn sample_reads(&mut self, n: usize) {
-        // self.reads = self.reads.iter().cloned().choose_multiple(&mut rand::thread_rng(), n);
-    // }
 
     fn get_num_overlap_bases(&self, i: usize, j: usize) -> i32 {
         let r1 = self.reads[i];
@@ -173,8 +172,10 @@ fn compute_helper(input: &str, min_qual: u8, min_depth: usize, max_depth: usize,
             Some(first_cpg_position) => {
                 cpg2reads.retain(|&cpg, reads| {
                     let retain = {
-                        if (cpg < first_cpg_position) && (reads.get_num_reads() >= min_depth) {
-                            result.insert(cpg, reads.compute_qfdrp(min_overlap));
+                        if cpg < first_cpg_position {
+                            if reads.get_num_reads() >= min_depth {
+                                result.insert(cpg, reads.compute_qfdrp(min_overlap));
+                            }
                             false
                         } else {
                             true
@@ -197,10 +198,11 @@ fn compute_helper(input: &str, min_qual: u8, min_depth: usize, max_depth: usize,
         if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
 
-    let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
-
+    // Flush remaining CpGs.
     for (cpg, reads) in cpg2reads.iter_mut() {
-        result.insert(*cpg, reads.compute_qfdrp(min_overlap));
+        if reads.get_num_reads() >= min_depth {
+            result.insert(*cpg, reads.compute_qfdrp(min_overlap));
+        }
     }
 
     result
