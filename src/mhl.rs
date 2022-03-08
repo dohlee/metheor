@@ -13,13 +13,15 @@ struct AssociatedReads {
     pos: readutil::CpGPosition,
     stretch_info: HashMap<i32, i32>,
     num_cpgs: Vec<i32>,
+    max_num_cpgs: usize,
 }
 
 impl AssociatedReads {
     fn new(pos: readutil::CpGPosition) -> Self {
         let stretch_info: HashMap<i32, i32> = HashMap::new();
         let num_cpgs: Vec<i32> = Vec::new();
-        Self{ pos, stretch_info, num_cpgs }
+        let max_num_cpgs = 0;
+        Self{ pos, stretch_info, num_cpgs, max_num_cpgs }
     }
 
     fn get_coverage(&self) -> u32 { self.num_cpgs.len() as u32 }
@@ -34,10 +36,19 @@ impl AssociatedReads {
     fn compute_mhl(&self) -> f32 {
         let mut mhl = 0.0;
         let mut l_sum = 0.0;
+        for l in 1..self.max_num_cpgs+1 {
+            l_sum += l as f32;
+        }
 
-        for ((l, count), num_cpgs) in self.stretch_info.iter().zip(self.num_cpgs.iter()) {
-            mhl += (l * count) as f32 / (num_cpgs - l + 1) as f32;
-            l_sum += *l as f32;
+        for (&l, count) in self.stretch_info.iter() {
+            let dom = *count as f32;
+
+            let mut denom = 0.0;
+            for num_cpg in self.num_cpgs.iter() {
+                denom += (num_cpg - l + 1) as f32;
+            }
+
+            mhl += (l as f32 * dom) / denom;
         }
 
         mhl /= l_sum;
@@ -46,6 +57,9 @@ impl AssociatedReads {
 
     fn add_num_cpgs(&mut self, num_cpgs: usize) {
         self.num_cpgs.push(num_cpgs as i32);
+        if num_cpgs >= self.max_num_cpgs {
+            self.max_num_cpgs = num_cpgs;
+        }
     }
 }
 
@@ -102,8 +116,10 @@ pub fn compute_helper(input: &str, min_depth: u32, min_cpgs: usize, min_qual: u8
             Some(first_cpg_position) => {
                 cpg2reads.retain(|&cpg, reads| {
                     let retain = {
-                        if (cpg < first_cpg_position) && (reads.get_coverage() >= min_depth) {
-                            result.insert(cpg, reads.compute_mhl());
+                        if cpg < first_cpg_position {
+                            if reads.get_coverage() >= min_depth {
+                                result.insert(cpg, reads.compute_mhl());
+                            }
                             false
                         } else {
                             true
@@ -116,11 +132,10 @@ pub fn compute_helper(input: &str, min_depth: u32, min_cpgs: usize, min_qual: u8
         }
 
         readcount += 1;
-        if br.get_num_cpgs() < min_cpgs { continue; }
         if r.mapq() < min_qual { continue; } // Read filtering: Minimum quality should be >= min_qual.
 
         let mut cpg_positions = br.get_cpg_positions();
-        if cpg_positions.len() == 0 { continue; } // Read filtering: Ignore reads without CpGs.
+        if br.get_num_cpgs() < min_cpgs { continue; } // Read filtering: Ignore reads with few CpGs.
 
         for cpg_position in cpg_positions.iter_mut() {
             let r = cpg2reads.entry(*cpg_position)
@@ -133,6 +148,13 @@ pub fn compute_helper(input: &str, min_depth: u32, min_cpgs: usize, min_qual: u8
         valid_readcount += 1;
         if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
+
+    // Flush remaining CpGs.
+    for (&cpg, reads) in cpg2reads.iter_mut() {
+        if reads.get_coverage() >= min_depth {
+            result.insert(cpg, reads.compute_mhl());
+        }
+    }
     
     result
 }
@@ -142,6 +164,38 @@ mod tests {
     use super::*;
     use super::super::bamutil;
 
+    fn startup(input: &str) -> HashMap<readutil::CpGPosition, AssociatedReads> {
+        let mut reader = bamutil::get_reader(&input);
+        let header = bamutil::get_header(&reader);
+    
+        let mut cpg2reads: HashMap<readutil::CpGPosition, AssociatedReads> = HashMap::new();
+
+    
+        for r in reader.records().map(|r| r.unwrap()) {
+            let mut br = readutil::BismarkRead::new(&r);
+    
+            let mut cpg_positions = br.get_cpg_positions();
+    
+            for cpg_position in cpg_positions.iter_mut() {
+                let r = cpg2reads.entry(*cpg_position)
+                                .or_insert(AssociatedReads::new(*cpg_position));
+                
+                r.add_num_cpgs(br.get_num_cpgs());
+                r.add_stretch_info(br.get_stretch_info());
+            }
+        }
+
+        cpg2reads
+    }
+    #[test]
+    fn test_stretch_info() {
+        let input = "tests/test1.bam";
+        let cpg2reads = startup(input);
+
+        for (cpg, reads) in cpg2reads.iter() {
+            assert_eq!(reads.compute_mhl(), 0.1625);
+        }
+    }
     #[test]
     fn test1() {
         let input = "tests/test1.bam";
