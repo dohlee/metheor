@@ -92,6 +92,18 @@ impl AssociatedReads {
         num_overlap_bases
     }
 
+    fn get_num_overlap_cpgs(&self, i: usize, j: usize) -> i32 {
+        let r1 = self.reads[i];
+        let r2 = self.reads[j];
+        
+        let mut num_overlap_cpgs = 0;
+        for p in 0..MAX_READ_LEN * 2 + 1 {
+            num_overlap_cpgs += (((r1[p as usize] >> 1) & (r2[p as usize] >> 1)) & 1) as i32;
+        }
+
+        num_overlap_cpgs
+    }
+
     fn hamming_distance(&self, i: usize, j: usize) -> f32 {
         let r1 = self.reads[i];
         let r2 = self.reads[j];
@@ -118,9 +130,10 @@ impl AssociatedReads {
 
             // Read pair filtering.
             let num_overlap_bases = self.get_num_overlap_bases(i, j);
+            let num_overlap_cpgs = self.get_num_overlap_cpgs(i, j);
             if num_overlap_bases < min_overlap { continue; }
 
-            qfdrp += self.hamming_distance(i, j) / num_overlap_bases as f32;
+            qfdrp += self.hamming_distance(i, j) / num_overlap_cpgs as f32;
         }
 
         qfdrp /= (num_reads * (num_reads - 1)) as f32 / 2.0;
@@ -213,24 +226,191 @@ mod tests {
     use super::*;
     use super::super::bamutil;
 
+    fn assert_approximately_equal(a: f32, b: f32) {
+        assert_eq!((a - b) < 1e-5, true);
+    }
+    
+    #[test]
+    fn test_hamming_distance() {
+        let input = "tests/test1.bam";
+        let min_qual = 0;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+
+        let mut reader = bamutil::get_reader(&input);
+        let header = bamutil::get_header(&reader);
+
+        let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
+
+        for r in reader.records().map(|r| r.unwrap()) {
+            let mut br = readutil::BismarkRead::new(&r);
+
+            for cpg_position in br.get_cpg_positions().iter() {
+                let r = cpg2reads.entry(*cpg_position)
+                            .or_insert(AssociatedReads::new(*cpg_position, max_depth));
+
+                r.add_read(&br);
+            }
+        }
+
+        for (cpg, reads) in cpg2reads.iter() {
+            assert_eq!(reads.hamming_distance(0, 1), 1.0);
+            assert_eq!(reads.hamming_distance(0, 2), 1.0);
+            assert_eq!(reads.hamming_distance(0, 3), 2.0);
+            assert_eq!(reads.hamming_distance(0, 4), 1.0);
+            assert_eq!(reads.hamming_distance(0, 5), 2.0);
+            assert_eq!(reads.hamming_distance(0, 6), 2.0);
+            assert_eq!(reads.hamming_distance(0, 7), 3.0);
+            assert_eq!(reads.hamming_distance(0, 8), 1.0);
+            assert_eq!(reads.hamming_distance(0, 9), 2.0);
+            assert_eq!(reads.hamming_distance(0, 10), 2.0);
+            assert_eq!(reads.hamming_distance(0, 11), 3.0);
+            assert_eq!(reads.hamming_distance(0, 12), 2.0);
+            assert_eq!(reads.hamming_distance(0, 13), 3.0);
+            assert_eq!(reads.hamming_distance(0, 14), 3.0);
+            assert_eq!(reads.hamming_distance(0, 15), 4.0);
+            break;
+        }
+    }
+    #[test]
+    fn test_get_num_reads() {
+        let input = "tests/test1.bam";
+        let min_qual = 0;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+
+        let mut reader = bamutil::get_reader(&input);
+        let header = bamutil::get_header(&reader);
+
+        let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
+
+        for r in reader.records().map(|r| r.unwrap()) {
+            let mut br = readutil::BismarkRead::new(&r);
+
+            for cpg_position in br.get_cpg_positions().iter() {
+                let r = cpg2reads.entry(*cpg_position)
+                            .or_insert(AssociatedReads::new(*cpg_position, max_depth));
+
+                r.add_read(&br);
+            }
+        }
+
+        for (cpg, reads) in cpg2reads.iter() {
+            assert_eq!(reads.get_num_reads(), 16);
+        }
+    }
+    #[test]
+    fn test_num_overlap_cpgs() {
+        let input = "tests/test1.bam";
+        let min_qual = 0;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+
+        let mut reader = bamutil::get_reader(&input);
+        let header = bamutil::get_header(&reader);
+
+        let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
+
+        for r in reader.records().map(|r| r.unwrap()) {
+            let mut br = readutil::BismarkRead::new(&r);
+
+            for cpg_position in br.get_cpg_positions().iter() {
+                let r = cpg2reads.entry(*cpg_position)
+                            .or_insert(AssociatedReads::new(*cpg_position, max_depth));
+
+                r.add_read(&br);
+            }
+        }
+
+        for (cpg, reads) in cpg2reads.iter() {
+            assert_eq!(reads.get_num_overlap_cpgs(0, 1), 4);
+            break;
+        }
+    }
     #[test]
     fn test1() {
         let input = "tests/test1.bam";
+        let min_qual = 0;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, qfdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_approximately_equal(*qfdrp, 8.0/15.0);
+        }
     }
     #[test]
     fn test2() {
         let input = "tests/test2.bam";
+        let min_qual = 0;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, qfdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!(*qfdrp, 8.0/15.0);
+            assert_approximately_equal(*qfdrp, 8.0/15.0);
+        }
     }
     #[test]
     fn test3() {
         let input = "tests/test3.bam";
+        let min_qual = 1;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, qfdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!(*qfdrp, 1.0);
+        }
     }
     #[test]
     fn test4() {
         let input = "tests/test4.bam";
+        let min_qual = 1;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6, 13, 15, 17, 19];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, qfdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!(*qfdrp, 8.0/15.0);
+        }
     }
     #[test]
     fn test5() {
         let input = "tests/test5.bam";
+        let min_qual = 1;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6, 13, 15, 17, 19];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        assert_eq!(result.len(), 0);
     }
 }

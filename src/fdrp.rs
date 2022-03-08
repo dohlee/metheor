@@ -65,6 +65,7 @@ impl AssociatedReads {
         // Reservoir sampling.
         // Fill if current reads are fewer than specified maximum depth.
         if self.num_total_read < self.max_depth as i32 {
+            self.num_sampled_read += 1;
             self.num_total_read += 1;
             self.reads.push(new_read);
         }
@@ -214,21 +215,83 @@ mod tests {
     #[test]
     fn test1() {
         let input = "tests/test1.bam";
+        let min_qual = 0;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, fdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!(*fdrp, 1.0);
+        }
     }
     #[test]
     fn test2() {
         let input = "tests/test2.bam";
+        let min_qual = 0;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, fdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!((*fdrp - (1.0 - 56.0/120.0)).abs() < 1e-4, true); // Approximately same.
+        }
     }
     #[test]
     fn test3() {
         let input = "tests/test3.bam";
+        let min_qual = 1;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, fdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!(*fdrp, 1.0);
+        }
     }
     #[test]
     fn test4() {
         let input = "tests/test4.bam";
+        let min_qual = 1;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6, 13, 15, 17, 19];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, fdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!(*fdrp, 1.0);
+        }
     }
     #[test]
     fn test5() {
         let input = "tests/test5.bam";
+        let min_qual = 1;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6, 13, 15, 17, 19];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        assert_eq!(result.len(), 0);
     }
 }
