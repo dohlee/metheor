@@ -167,12 +167,15 @@ mod tests {
     fn startup(input: &str) -> HashMap<readutil::CpGPosition, AssociatedReads> {
         let mut reader = bamutil::get_reader(&input);
         let header = bamutil::get_header(&reader);
+
+        let min_qual = 10;
     
         let mut cpg2reads: HashMap<readutil::CpGPosition, AssociatedReads> = HashMap::new();
 
     
         for r in reader.records().map(|r| r.unwrap()) {
             let mut br = readutil::BismarkRead::new(&r);
+            if r.mapq() < min_qual { continue; } // Read filtering: Minimum quality should be >= min_qual.
     
             let mut cpg_positions = br.get_cpg_positions();
     
@@ -199,21 +202,44 @@ mod tests {
     #[test]
     fn test1() {
         let input = "tests/test1.bam";
+        let cpg2reads = startup(input);
+
+        for (cpg, reads) in cpg2reads.iter() {
+            assert_eq!(reads.compute_mhl(), 0.1625);
+        }
     }
     #[test]
     fn test2() {
         let input = "tests/test2.bam";
+        let cpg2reads = startup(input);
+
+        for (cpg, reads) in cpg2reads.iter() {
+            assert_eq!(reads.compute_mhl(), 0.5);
+        }
     }
     #[test]
     fn test3() {
         let input = "tests/test3.bam";
+        let cpg2reads = startup(input);
+
+        for (cpg, reads) in cpg2reads.iter() {
+            assert_eq!(reads.compute_mhl(), 0.5);
+        }
     }
     #[test]
     fn test4() {
         let input = "tests/test4.bam";
+        let cpg2reads = startup(input);
+
+        for (cpg, reads) in cpg2reads.iter() {
+            assert_eq!(reads.compute_mhl(), 0.1625);
+        }
     }
     #[test]
     fn test5() {
         let input = "tests/test5.bam";
+        let cpg2reads = startup(input);
+        
+        assert_eq!(cpg2reads.len(), 0);
     }
 }
