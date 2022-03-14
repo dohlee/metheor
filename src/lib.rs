@@ -110,11 +110,11 @@ pub enum Commands {
         min_qual: u8,
 
         /// Minimum number of reads mapped to a CpG in order to be considered.
-        #[clap(long, short='n', default_value_t=10, display_order=4)]
+        #[clap(long, short='d', default_value_t=10, display_order=4)]
         min_depth: usize,
 
         /// Maximum number of reads to consider.
-        #[clap(long, short='n', default_value_t=40, display_order=5)]
+        #[clap(long, short='D', default_value_t=40, display_order=5)]
         max_depth: usize,
 
         /// Minimum overlap between two reads to consider in bp.
@@ -141,11 +141,11 @@ pub enum Commands {
         min_qual: u8,
 
         /// Minimum number of reads mapped to a CpG in order to be considered.
-        #[clap(long, short='n', default_value_t=10, display_order=4)]
+        #[clap(long, short='d', default_value_t=10, display_order=4)]
         min_depth: usize,
 
         /// Maximum number of reads to consider.
-        #[clap(long, short='n', default_value_t=40, display_order=5)]
+        #[clap(long, short='D', default_value_t=40, display_order=5)]
         max_depth: usize,
 
         /// Minimum overlap between two reads to consider in bp.
