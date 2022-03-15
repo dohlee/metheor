@@ -90,6 +90,8 @@ metheor mhl --input <input.bam> --output <output.tsv>
 
 **Epipolymorphism (PM)**
 
+![PM](img/pm.png)
+
 Landan et al., proposed another measure named epipolymorphism (PM), which also captures the amount of heterogeneity of DNA methylation for a given genomic region. The relationship between ME and PM is analogous to that between entropy and Gini index used for decision trees, and they can be considered as similar measures of DNA methylation heterogeneity in general. Using `metheor`, PM can be calculated with the command below:
 ```
 metheor pm --input <input.bam> --output <output.tsv>
@@ -105,6 +107,8 @@ metheor pm --input <input.bam> --output <output.tsv>
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 **Methylation entropy (ME)**
+
+![me](img/me.png)
 
 Xie et al. proposed an information theoretic measure called methylation entropy (ME), which is calculated as the entropy of epialleles originating from a single genomic locus. 
 ```
