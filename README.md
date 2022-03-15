@@ -21,6 +21,8 @@ conda install -c dohlee metheor
 
 **Proportion of discordant reads (PDR)**
 
+![PDR](img/pdr.png)
+
 PDR is defined as a fraction of reads carrying CpGs in discordant methylation states (i.e. containing both methylated and unmethylated CpGs in a single read) with respect to all reads mapped to a CpG.
 ```
 metheor pdr --input <input.bam> --output <output.tsv>
