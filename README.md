@@ -39,21 +39,45 @@ metheor pdr --input <input.bam> --output <output.tsv>
 - `-q, --min-qual`: Minimum quality for a read to be considered [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
-**Methylation entropy (ME)**
+**Local pairwise methylation disorder (LPMD)**
 
-Xie et al. proposed an information theoretic measure called methylation entropy (ME), which is calculated as the entropy of epialleles originating from a single genomic locus. 
+![LPMD](img/lpmd.png)
+
+We introduce LPMD as a new measure to quantify the local concordance of DNA methylation states.
+The conceptual basis of LPMD is similar to PDR as they both are aware of local homogeneity of DNA methylation states, but they are different in that LPMD explicitly takes the distance between CpGs into consideration.
+In detail, LPMD is defined as a fraction of CpG pairs within a given range of genomic distance (i.e., CpG pairs more distant than m basepairs and closer than M basepairs) and therefore, LPMD is defined for a *pair* of CpGs, but not for a single CpG.
+Importantly, we note that while there is an increased tendency of observing discordant reads solely by change, according to the definition in PDR, as the sequencing read gets longer, LPMD is not dependent on the length of sequencing reads.
+
 ```
-metheor me --input <INPUT> --output <OUTPUT>
-    --min-depth <min-depth> --min-qual <min-qual> --cpg-set <cpg-set.bed>
+metheor lpmd --input <INPUT> --output <OUTPUT> [OPTIONS]
 ```
 
 *Options*
 
 - `-i, --input`: Path to input BAM file.
-- `-o, --output`: Path to output table file summarizing the result of ME calculation.
-- `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
+- `-o, --output`: Path to output table file summarizing the result of LPMD calculation.
+- `-p, --pairs`: (Optional) Concordance information for all CpG pairs.
+- `-m, --min-distance`: Minimum distance between CpG pairs to consider. [default: 2]
+- `-M, --max-distance`: Maximum distance between CpG pairs to consider. [default: 16]
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+
+**Methylation haplotype load (MHL)**
+
+```
+metheor mhl --input <input.bam> --output <output.tsv>
+    --min-depth <min-depth> --min-cpgs <min-cpgs> --min-qual <min-qual>
+    --cpg-set <cpg-set.bed>
+```
+
+*Options*
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
+- `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
+- `-c, --min-cpgs`: Minimum number of consecutive CpGs in a CpG stretch to consider.
+- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
+- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+
 
 **Epipolymorphism (PM)**
 
@@ -67,6 +91,22 @@ metheor pm --input <input.bam> --output <output.tsv>
 
 - `-i, --input`: Path to input BAM file.
 - `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
+- `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
+- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
+- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+
+**Methylation entropy (ME)**
+
+Xie et al. proposed an information theoretic measure called methylation entropy (ME), which is calculated as the entropy of epialleles originating from a single genomic locus. 
+```
+metheor me --input <INPUT> --output <OUTPUT>
+    --min-depth <min-depth> --min-qual <min-qual> --cpg-set <cpg-set.bed>
+```
+
+*Options*
+
+- `-i, --input`: Path to input BAM file.
+- `-o, --output`: Path to output table file summarizing the result of ME calculation.
 - `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
@@ -105,37 +145,6 @@ metheor qfdrp --input <input.bam> --output <output.tsv>
 - `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
 - `-n, --max-depth`: Maximum number of reads to consider. [default: 40]
 - `-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
-- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
-
-**Methylation haplotype load (MHL)**
-
-```
-metheor mhl --input <input.bam> --output <output.tsv>
-    --min-depth <min-depth> --min-cpgs <min-cpgs> --min-qual <min-qual>
-    --cpg-set <cpg-set.bed>
-```
-
-*Options*
-- `-i, --input`: Path to input BAM file.
-- `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
-- `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
-- `-c, --min-cpgs`: Minimum number of consecutive CpGs in a CpG stretch to consider.
-- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
-- `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
-
-**Local pairwise methylation disorder (LPMD)**
-```
-metheor lpmd --input <INPUT> --output <OUTPUT> [OPTIONS]
-```
-
-*Options*
-
-- `-i, --input`: Path to input BAM file.
-- `-o, --output`: Path to output table file summarizing the result of LPMD calculation.
-- `-p, --pairs`: (Optional) Concordance information for all CpG pairs.
-- `-m, --min-distance`: Minimum distance between CpG pairs to consider. [default: 2]
-- `-M, --max-distance`: Maximum distance between CpG pairs to consider. [default: 16]
-- `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 ### Miscellaneous
