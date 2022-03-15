@@ -49,7 +49,9 @@ In detail, LPMD is defined as a fraction of CpG pairs within a given range of ge
 Importantly, we note that while there is an increased tendency of observing discordant reads solely by change, according to the definition in PDR, as the sequencing read gets longer, LPMD is not dependent on the length of sequencing reads.
 
 ```
-metheor lpmd --input <INPUT> --output <OUTPUT> [OPTIONS]
+metheor lpmd --input <INPUT> --output <OUTPUT>
+    --pairs --min-distance <min_distance> --max-distance <max_distance>
+    --min-qual <min_qual> --cpg-set <cpg_set.bed>
 ```
 
 *Options*
@@ -63,6 +65,13 @@ metheor lpmd --input <INPUT> --output <OUTPUT> [OPTIONS]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
 **Methylation haplotype load (MHL)**
+
+![MHL](img/mhl.png)
+
+The concept of MHL is also based on the local homogeneity of DNA methylation states, or co-methylation, due to the processivity of enzymes responsible for (de-)methylation of cytosines (Guo et al., 2017).
+While PDR and LPMD focus on how much the tendency of co-methylation is perturbed in the given population of cells, MHL focuses on how well the methylation haplotypes (i.e., *stretch* of consecutive methylated CpGs) are conserved throughout the cell population for a given genomic region.
+MHL is first devised to systematically identify the genomic blocks harboring CpGs with tightly coupled methylation states.
+In detail, MHL is computed as a fraction of observed *fully methylated stretches* out of the all stretches of every possible lengths.
 
 ```
 metheor mhl --input <input.bam> --output <output.tsv>
