@@ -126,6 +126,17 @@ metheor me --input <INPUT> --output <OUTPUT>
 
 **Fraction of discordant read pairs (FDRP)**
 
+FDRP and qFDRP are measures of epigenetic diversity within a cell population that were first proposed in Scherer et al. (2020).
+While PM and ME quantify the epiallelic diversity in terms of CpG quartets, FDRP and qFDRP allow the computation of epiallelic diversity in a single CpG resolution.
+The key principle underlying the FDRP and qFDRP is as follows.
+When epialleles are perfectly homogeneous for a short genomic region, any two sequencing reads aligned to that region will have identical methylation states for CpGs that are common to the two reads.
+On the other hand, as epialleles become more diverse, it is more likely to observe a read pair that have different methylation states for common CpGs.
+Based on this notion, FDRP and qFDRP computes a CpG-wise epigenetic diversity by examining pairs of sequencing reads covering the CpG.
+Since the time required for all pairwise examination of sequencing reads increases exponentially along with the sequencing depth, the authors adopt a read sampling strategy to make those measures computed in a feasible time.
+Therefore, the maximum numbers of reads to consider `M` is a crucial parameter modulating the balance between the precision of the measures and the computing time.
+
+FDRP is defined as a fraction of (sampled) read pairs that are discordant (i.e., at least one CpG common to the two rads have different methylation state).
+
 ```
 metheor fdrp --input <input.bam> --output <output.tsv>
     --min-qual <min-qual> --max-depth <max-depth> --min-overlap <min-overlap>
@@ -149,6 +160,10 @@ metheor qfdrp --input <input.bam> --output <output.tsv>
     --min-qual <min-qual> --max-depth <max-depth> --min-overlap <min-overlap>
     --cpg-set <cpg-set.bed>
 ```
+
+qFDRP is a soft-version of FDRP.
+Instead of deciding whether the read pair is discordant, qFDRP computes the normalized hamming distance.
+Note that when the methylation states of the common CpGs are completely same, normalized hamming distance will be 0, and when the methylation states are completely different, it will be 1, which makes qFDRP calculation equivalent to FDRP.
 
 *Options*
 
