@@ -244,6 +244,20 @@ impl CpGPosition {
     pub fn new(tid: i32, pos: i32) -> Self {
         Self { tid, pos }
     }
+
+    pub fn is_before(&self, other: &Self, distance: i32) -> bool {
+        if self.tid > other.tid {
+            false
+        } else if self.tid < other.tid {
+            true
+        } else {
+            if self.pos + distance < other.pos {
+                true
+            } else {
+                false
+            }
+        }
+    }
 }
 
 impl fmt::Display for CpGPosition {

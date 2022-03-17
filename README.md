@@ -83,7 +83,7 @@ metheor mhl --input <input.bam> --output <output.tsv>
 - `-i, --input`: Path to input BAM file.
 - `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
 - `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
-- `-c, --min-cpgs`: Minimum number of consecutive CpGs in a CpG stretch to consider.
+- `-p, --min-cpgs`: Minimum number of consecutive CpGs in a CpG stretch to consider.
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
@@ -149,7 +149,7 @@ metheor fdrp --input <input.bam> --output <output.tsv>
 - `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
-- `-n, --max-depth`: Maximum number of reads to consider. [default: 40]
+- `-D, --max-depth`: Maximum number of reads to consider. [default: 40]
 - `-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
@@ -171,7 +171,7 @@ Note that when the methylation states of the common CpGs are completely same, no
 - `-o, --output`: Path to output table file summarizing the result of epipolymorphism calculation.
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
-- `-n, --max-depth`: Maximum number of reads to consider. [default: 40]
+- `-D, --max-depth`: Maximum number of reads to consider. [default: 40]
 - `-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 

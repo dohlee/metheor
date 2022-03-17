@@ -101,9 +101,11 @@ pub fn compute_helper(input: &str, min_depth: u32, min_cpgs: usize, min_qual: u8
             Some(first_cpg_position) => {
                 cpg2reads.retain(|&cpg, reads| {
                     let retain = {
-                        if (cpg < first_cpg_position) && (reads.get_coverage() >= min_depth) {
-                            result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
-
+                        // if cpg < first_cpg_position {
+                        if cpg.is_before(&first_cpg_position, 150) {
+                            if reads.get_coverage() >= min_depth {
+                                result.insert(cpg, (reads.compute_pdr(), reads.get_n_concordant(), reads.get_n_discordant()));
+                            }
                             false
                         } else {
                             true

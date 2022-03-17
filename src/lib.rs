@@ -172,7 +172,7 @@ pub enum Commands {
         min_depth: u32,
 
         /// Minimum number of consecutive CpGs in a CpG stretch to consider.
-        #[clap(long, short='c', default_value_t=4, display_order=4)]
+        #[clap(long, short='p', default_value_t=4, display_order=4)]
         min_cpgs: usize,
 
         /// Minimum quality for a read to be considered.
