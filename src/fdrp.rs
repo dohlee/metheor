@@ -7,7 +7,7 @@ use rand::Rng;
 
 use crate::{readutil, bamutil, progressbar};
 
-const MAX_READ_LEN: i32 = 151;
+const MAX_READ_LEN: i32 = 51;
 
 struct AssociatedReads {
     // Use compact representation of reads.
@@ -21,15 +21,17 @@ struct AssociatedReads {
     pos: readutil::CpGPosition,
     reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]>,
     num_total_read: i32,
+    num_sampled_read: i32,
     max_depth: usize,
 }
 
 impl AssociatedReads {
     fn new(pos: readutil::CpGPosition, max_depth: usize) -> Self {
-        let reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]> = Vec::new(); 
+        let reads: Vec<[u8; (MAX_READ_LEN * 2 + 1) as usize]> = Vec::new();
         let num_total_read = 0;
+        let num_sampled_read = 0;
 
-        Self { pos, reads, num_total_read, max_depth }
+        Self { pos, reads, num_total_read, num_sampled_read, max_depth }
     }
 
     fn get_relative_position(&self, other_pos: readutil::CpGPosition) -> usize {
@@ -37,7 +39,7 @@ impl AssociatedReads {
     }
 
     fn get_num_reads(&self) -> usize {
-        self.reads.len()
+        self.num_sampled_read as usize
     }
 
     fn add_read(&mut self, br: &readutil::BismarkRead) {
@@ -63,6 +65,7 @@ impl AssociatedReads {
         // Reservoir sampling.
         // Fill if current reads are fewer than specified maximum depth.
         if self.num_total_read < self.max_depth as i32 {
+            self.num_sampled_read += 1;
             self.num_total_read += 1;
             self.reads.push(new_read);
         }
@@ -104,7 +107,7 @@ impl AssociatedReads {
         false
     }
 
-    fn compute_fdrp(&mut self, min_overlap: i32) -> f32 {
+    fn compute_fdrp(&self, min_overlap: i32) -> f32 {
         let num_reads = self.get_num_reads();
 
         let mut fdrp = 0.0;
@@ -124,15 +127,8 @@ impl AssociatedReads {
     }
 }
 
-pub fn compute(input: &str, output: &str, min_qual: u8, max_depth: usize, min_overlap: i32, cpg_set: &Option<String>) {
-    match cpg_set {
-        Some(cpg_set) => run_subset(input, output, min_qual, max_depth, min_overlap, cpg_set),
-        None => run_all(input, output, min_qual, max_depth, min_overlap),
-    }
-}
-
-fn run_all(input: &str, output: &str, min_qual: u8, max_depth: usize, min_overlap: i32) {
-    let result = compute_all(input, min_qual, max_depth, min_overlap);
+pub fn compute(input: &str, output: &str, min_qual: u8, min_depth: usize, max_depth: usize, min_overlap: i32, cpg_set: &Option<String>) {
+    let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, cpg_set);
 
     let reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
@@ -146,73 +142,50 @@ fn run_all(input: &str, output: &str, min_qual: u8, max_depth: usize, min_overla
     }
 }
 
-fn run_subset(input: &str, output: &str, min_qual: u8, max_depth: usize, min_overlap: i32, cpg_set: &str) {
-    let result = compute_subset(input, min_qual, max_depth, min_overlap, cpg_set);
-
-    let reader = bamutil::get_reader(&input);
-    let header = bamutil::get_header(&reader);
-
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
-    for (cpg, fdrp) in result.iter() {
-        let chrom = bamutil::tid2chrom(cpg.tid, &header);
-        writeln!(out, "{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, fdrp)
-            .ok()
-            .expect("Error writing to output file.");
-    }
-}
-
-fn compute_all(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32) -> BTreeMap<readutil::CpGPosition, f32> {
+fn compute_helper(input: &str, min_qual: u8, min_depth: usize, max_depth: usize, min_overlap: i32, cpg_set: &Option<String>) -> BTreeMap<readutil::CpGPosition, f32> {
     let mut reader = bamutil::get_reader(&input);
+    let header = bamutil::get_header(&reader);
 
     let mut readcount = 0;
     let mut valid_readcount = 0;
 
+    let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
+
     let bar = progressbar::ProgressBar::new();
 
     let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
-    for r in reader.records().map(|r| r.unwrap()) {
-        let br = readutil::BismarkRead::new(&r);
-
-        readcount += 1;
-        if r.mapq() < min_qual { continue; }
-
-        for cpg_position in br.get_cpg_positions().iter() {
-            let r = cpg2reads.entry(*cpg_position)
-                        .or_insert(AssociatedReads::new(*cpg_position, max_depth));
-
-            r.add_read(&br);
-        }
-        valid_readcount += 1;
-        if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
-    }
-
     let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
 
-    for (cpg, reads) in cpg2reads.iter_mut() {
-        result.insert(*cpg, reads.compute_fdrp(min_overlap));
-    }
-
-    result
-}
-
-fn compute_subset(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32, cpg_set: &str) -> BTreeMap<readutil::CpGPosition, f32> {
-    let mut reader = bamutil::get_reader(&input);
-    let header = bamutil::get_header(&reader);
-
-    let mut readcount = 0;
-    let mut valid_readcount = 0;
-
-    let target_cpgs = readutil::get_target_cpgs(cpg_set, &header);
-
-    let bar = progressbar::ProgressBar::new();
-
-    let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
-        br.filter_isin(&target_cpgs);
+
+        match target_cpgs {
+            Some(target_cpgs) => br.filter_isin(target_cpgs),
+            None => {}
+        }
 
         readcount += 1;
         if r.mapq() < min_qual { continue; }
+        if br.get_num_cpgs() == 0 { continue; }
+
+        match br.get_first_cpg_position() {
+            Some(first_cpg_position) => {
+                cpg2reads.retain(|&cpg, reads| {
+                    let retain = {
+                        if cpg < first_cpg_position {
+                            if reads.get_num_reads() >= min_depth {
+                                result.insert(cpg, reads.compute_fdrp(min_overlap));
+                            }
+                            false
+                        } else {
+                            true
+                        }
+                    };
+                    retain
+                }); // Finalize and compute metric for the CpGs before the first CpG in this read.
+            }
+            None => {}
+        }
 
         for cpg_position in br.get_cpg_positions().iter() {
             let r = cpg2reads.entry(*cpg_position)
@@ -224,10 +197,11 @@ fn compute_subset(input: &str, min_qual: u8, max_depth: usize, min_overlap: i32,
         if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
     }
 
-    let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
-
+    // Flush remaining CpGs.
     for (cpg, reads) in cpg2reads.iter_mut() {
-        result.insert(*cpg, reads.compute_fdrp(min_overlap));
+        if reads.get_num_reads() >= min_depth {
+            result.insert(*cpg, reads.compute_fdrp(min_overlap));
+        }
     }
 
     result
@@ -241,21 +215,83 @@ mod tests {
     #[test]
     fn test1() {
         let input = "tests/test1.bam";
-    }
+        let min_qual = 0;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
 
+        let cpg_positions = [0, 2, 4, 6];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, fdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!(*fdrp, 1.0);
+        }
+    }
+    #[test]
     fn test2() {
         let input = "tests/test2.bam";
-    }
+        let min_qual = 0;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
 
+        let cpg_positions = [0, 2, 4, 6];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, fdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!((*fdrp - (1.0 - 56.0/120.0)).abs() < 1e-4, true); // Approximately same.
+        }
+    }
+    #[test]
     fn test3() {
         let input = "tests/test3.bam";
-    }
+        let min_qual = 1;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
 
+        let cpg_positions = [0, 2, 4, 6];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, fdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!(*fdrp, 1.0);
+        }
+    }
+    #[test]
     fn test4() {
         let input = "tests/test4.bam";
-    }
+        let min_qual = 1;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
 
+        let cpg_positions = [0, 2, 4, 6, 13, 15, 17, 19];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        for (i, (cpg, fdrp)) in result.iter().enumerate() {
+            assert_eq!(cpg.pos, cpg_positions[i]); 
+            assert_eq!(*fdrp, 1.0);
+        }
+    }
+    #[test]
     fn test5() {
         let input = "tests/test5.bam";
+        let min_qual = 1;
+        let min_depth = 2;
+        let max_depth = 40;
+        let min_overlap = 4;
+        let cpg_set = None;
+
+        let cpg_positions = [0, 2, 4, 6, 13, 15, 17, 19];
+
+        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        assert_eq!(result.len(), 0);
     }
 }

@@ -2,7 +2,7 @@ use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}
 use std::fmt;
 use std::fs;
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use crate::{bamutil};
 
@@ -22,9 +22,14 @@ impl BismarkRead {
         let mut start_pos = -1;
         let mut end_pos = -1;
 
-        for abspos in r.reference_positions_full().map(|x| x.unwrap() as i32) {
-            if start_pos == -1 { start_pos = abspos; }
-            end_pos = abspos;
+        for abspos in r.reference_positions_full() {
+            match abspos {
+                Some(abspos) => {
+                    if start_pos == -1 { start_pos = abspos as i32; }
+                    end_pos = abspos as i32;
+                }
+                None => {}
+            }
         }
 
         match r.aux(b"XM") {
@@ -39,6 +44,13 @@ impl BismarkRead {
             Err(_) => {
                 panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
             }
+        }
+    }
+
+    pub fn get_first_cpg_position(&self) -> Option<CpGPosition> {
+        match self.get_num_cpgs() {
+            0 => None,
+            _ => Some(self.cpgs[0].abspos)
         }
     }
 
@@ -111,6 +123,25 @@ impl BismarkRead {
         }
 
         res
+    }
+
+    pub fn get_stretch_info(&self) -> HashMap<i32, i32> {
+        let mut stretch_info: HashMap<i32, i32> = HashMap::new();
+        let mut curr_stretch_length = 0;
+
+        for cpg in &self.cpgs {
+            if cpg.methylated {
+                curr_stretch_length += 1;
+                for l in 1..curr_stretch_length+1 {
+                    let v = stretch_info.entry(l).or_insert(0);
+                    *v += 1;
+                }
+            } else {
+                curr_stretch_length = 0;
+            }
+        }
+
+        stretch_info
     }
 
     pub fn compute_pairwise_cpg_concordance_discordance(&self, min_distance: i32, max_distance: i32) -> (i32, i32, Vec<(CpGPosition, CpGPosition, ReadConcordanceState)>) {
@@ -213,6 +244,20 @@ impl CpGPosition {
     pub fn new(tid: i32, pos: i32) -> Self {
         Self { tid, pos }
     }
+
+    pub fn is_before(&self, other: &Self, distance: i32) -> bool {
+        if self.tid > other.tid {
+            false
+        } else if self.tid < other.tid {
+            true
+        } else {
+            if self.pos + distance < other.pos {
+                true
+            } else {
+                false
+            }
+        }
+    }
 }
 
 impl fmt::Display for CpGPosition {
@@ -269,23 +314,28 @@ fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
     return cpgs
 }
 
-pub fn get_target_cpgs(cpg_set: &str, header: &bam::HeaderView) -> HashSet<CpGPosition> {
-    eprint!("Processing target CpG set... ");
-    let mut target_cpgs: HashSet<CpGPosition> = HashSet::new();
-    
-    let contents = fs::read_to_string(cpg_set)
-                    .expect("Could not read target CpG file.");
-    
-    for line in contents.lines() {
-        let tokens: Vec<&str> = line.split("\t").collect();
-    
-        let chrom = tokens[0];
-        let pos = tokens[1].parse::<i32>().unwrap();
+pub fn get_target_cpgs(cpg_set: &Option<String>, header: &bam::HeaderView) -> Option<HashSet<CpGPosition>> {
+    match cpg_set {
+        Some(cpg_set) => {
+            eprint!("Processing target CpG set... ");
+            let mut target_cpgs: HashSet<CpGPosition> = HashSet::new();
+            
+            let contents = fs::read_to_string(cpg_set)
+                            .expect("Could not read target CpG file.");
+            
+            for line in contents.lines() {
+                let tokens: Vec<&str> = line.split("\t").collect();
+            
+                let chrom = tokens[0];
+                let pos = tokens[1].parse::<i32>().unwrap();
+                
+                target_cpgs.insert(CpGPosition{ tid: bamutil::chrom2tid(chrom.as_bytes(), header) as i32, pos: pos });
+            }
         
-        target_cpgs.insert(CpGPosition{ tid: bamutil::chrom2tid(chrom.as_bytes(), header) as i32, pos: pos });
+            Some(target_cpgs)
+        }
+        None => None,
     }
-
-    target_cpgs
 }
 
 #[cfg(test)]
