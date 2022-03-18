@@ -7,6 +7,12 @@
 
 Compute DNA methylation heterogeneity levels from Bismark-aligned bisulfite sequencing data.
 
+## Motivation
+
+Per-CpG methylation level is not the only information we can extract from bisulfite sequencing data.
+We miss too much valuable clues about epigenetic ***stability*** and ***diversity*** by averaging out the signals!
+We here provide an ultrafast, Rust-based bioinformatics tool for the computation of various intra-/inter-cellular methylation heterogeneity measures.
+
 ## Installation
 Install with `conda`.
 ```
