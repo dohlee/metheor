@@ -215,6 +215,8 @@ mod tests {
 
     #[test]
     fn test4() {
+        // Two read groups, each has 16 reads, aligned to two distinct position.
+        // Reads have four CpGs, all the 16 methylation patterns are present. (Max entropy)
         let input = "tests/test4.bam";
 
         let min_depth = 0;
@@ -222,7 +224,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let target_pdrs = [14.0 / 16.0; 8];
+        let target_pdrs = [14.0 / 16.0; 8]; // Two concordant patterns (0000, 1111)
         let target_n_concordant = [2; 8];
         let target_n_discordant = [14; 8];
 
@@ -253,5 +255,47 @@ mod tests {
         let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
 
         assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test6_mincpg_low() {
+        // Similar to test4, but reads have only one CpGs.
+        // There are 2 unique positions of CpGs.
+        // Here we set min_cpgs to 1, so every read passes the filter.
+        let input = "tests/test6.bam";
+
+        let min_depth = 0;
+        let min_cpgs = 1;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let target_pdrs = [0.0; 2];
+        let target_n_concordant = [16; 2];
+        let target_n_discordant = [0; 2];
+
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+
+        assert_eq!(result.len(), 2);
+        for (i, (cpg, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
+            assert_eq!(*pdr, target_pdrs[i]);
+            assert_eq!(*n_concordant, target_n_concordant[i]);
+            assert_eq!(*n_discordant, target_n_discordant[i]);
+        }
+    }
+
+    #[test]
+    fn test6_mincpg_high() {
+        // Similar to test4, but reads have only one CpGs.
+        // There are 2 unique positions of CpGs.
+        // Here we set min_cpgs to 2, so no reads pass the filter.
+        let input = "tests/test6.bam";
+
+        let min_depth = 0;
+        let min_cpgs = 2;
+        let min_qual = 10;
+        let cpg_set = None;
+
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+        assert_eq!(result.len(), 0); // No CpGs participate in the PDR calculation.
     }
 }
