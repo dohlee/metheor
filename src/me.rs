@@ -174,6 +174,7 @@ mod tests {
     }
     #[test]
     fn test5() {
+        // No reads pass quality cutoff.
         let input = "tests/test5.bam";
 
         let min_qual = 10;
