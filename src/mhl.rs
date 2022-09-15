@@ -45,8 +45,12 @@ impl AssociatedReads {
 
             let mut denom = 0.0;
             for num_cpg in self.num_cpgs.iter() {
-                denom += (num_cpg - l + 1) as f32;
+                if num_cpg >= &l {
+                    denom += (num_cpg - l + 1) as f32;
+                }
             }
+
+            assert!(denom > 0.0, "denom <= 0!, max_num_cpgs={}, num_cpgs={:?}, l={}", self.max_num_cpgs, self.num_cpgs, l);
 
             mhl += (l as f32 * dom) / denom;
         }

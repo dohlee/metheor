@@ -302,7 +302,7 @@ fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
                 if (r.flags() == 0) || (r.flags() == 99) || (r.flags() == 147) { // Forward
                     let cpgpos = CpGPosition::new(r.tid(), abspos as i32);
                     cpgs.push(CpG::new(relpos as i32, cpgpos, c));
-                } else {
+                } else { // Reverse
                     let cpgpos = CpGPosition::new(r.tid(), (abspos - 1) as i32);
                     cpgs.push(CpG::new(relpos as i32, cpgpos, c));
                 }
