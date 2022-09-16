@@ -193,3 +193,19 @@ metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
 - `-i, --input`: Path to input BAM file.
 - `-o, --output`: Path to output BAM file tagged with XM tag.
 - `-g, --genome`: Path to genome fasta file.
+
+## Methylation heterogeneity profiles of 928 CCLE cell lines
+
+We computed DNA methylation heterogeneity profiles of 928 Cancer Cell Line Encyclopedia (CCLE) cell lines using Metheor. The resulting profiles are publicly available at https://doi.org/10.6084/m9.figshare.21100717.v1.
+
+## Citation
+
+```
+@article{lee2022metheor,
+  title={Metheor: Ultrafast DNA methylation heterogeneity calculation from bisulfite read alignments},
+  author={Lee, Dohoon and Koo, Bonil and Yang, Jeewon and Kim, Sun},
+  journal={bioRxiv},
+  year={2022},
+  publisher={Cold Spring Harbor Laboratory}
+}
+```
