@@ -44,6 +44,17 @@ metheor pdr --input <input.bam> --output <output.tsv>
 - `-q, --min-qual`: Minimum quality for a read to be considered [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
+*Output*
+
+Produces a tab-separated table with the following six columns. Note that the coordinate system follows that of BED/BedGraph format (0-based, half-open), without header names.
+
+1. `chrom`: Chromosome where the CpG exists.
+2. `start`: 0-based position of the cytosine (C) in CpG
+3. `end`: 0-based position + 1 of the guanine (G) in CpG
+4. `pdr`: Value of PDR
+5. `n_c`: Number of concordant reads (i.e., all the CpGs covered by the read have identical methylation states) supporting the CpG
+6. `n_d`: Number of discordant reads (i.e., CpGs covered by the read have more than one methylation states)
+
 **Local pairwise methylation disorder (LPMD)**
 
 ![LPMD](img/lpmd.png)
@@ -69,6 +80,22 @@ metheor lpmd --input <INPUT> --output <OUTPUT>
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
+*Output*
+
+By default, it produces a simple tab-delimited table containing genomewide average lpmd values. It has two columns:
+
+1. `name`: Filename
+2. `lpmd`: LPMD values averaged for all CpG pairs participating in the analysis
+
+Optionally, when `--pairs` flag is turned on, you can have a more detailed table with CpG pair-wise statistics for LPMD computation. Note that the size of the file can be large. There are six columns:
+
+1. `chrom`: Chromosome where the CpG pair exists
+2. `cpg1`: 0-based position of the cytosine (C) of the first CpG
+3. `cpg2`: 0-based position of the cytosine (C) of the second CpG
+4. `lpmd`: LPMD value. Computed as `n_discordant` / (`n_concordant` + `n_discordant`)
+5. `n_concordant`: Number of sequencing reads supporting CpG pairs having the same methylation state
+6. `n_discordant`: Number of sequencing reads supporting CpG pairs having different methylation states
+
 **Methylation haplotype load (MHL)**
 
 ![MHL](img/mhl.png)
@@ -92,6 +119,14 @@ metheor mhl --input <input.bam> --output <output.tsv>
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
+*Output*
+
+Produces a (BedGraph-compatible) tab-separated table with the following four columns.
+
+1. `chrom`: Chromosome where the CpG exists.
+2. `start`: 0-based position of the cytosine (C) in CpG
+3. `end`: 0-based position + 1 of the guanine (G) in CpG
+4. `mhl`: Value of MHL
 
 **Epipolymorphism (PM)**
 
@@ -111,6 +146,19 @@ metheor pm --input <input.bam> --output <output.tsv>
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
+*Output*
+
+Produces a tab-separated table with the following five columns, where each row corresponds to a CpG quartet of interest (four consecutive CpGs):
+
+1. `chrom`: Chromosome where the CpG quartet exists.
+2. `cpg1`: 0-based position of the cytosine (C) in the first CpG
+3. `cpg2`: 0-based position of the cytosine (C) in the second CpG
+4. `cpg3`: 0-based position of the cytosine (C) in the third CpG
+5. `cpg4`: 0-based position of the cytosine (C) in the fourth CpG
+6. `pm`: Value of PM
+
+*NOTE*: The order of CpG quartets in the output file is not sorted.
+
 **Methylation entropy (ME)**
 
 ![me](img/me.png)
@@ -128,6 +176,19 @@ metheor me --input <INPUT> --output <OUTPUT>
 - `-d, --min-depth`: Minimum depth of reads covering epialleles to consider. [default: 10]
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+
+*Output*
+
+Produces a tab-separated table with the following five columns, where each row corresponds to a CpG quartet of interest (four consecutive CpGs):
+
+1. `chrom`: Chromosome where the CpG quartet exists.
+2. `cpg1`: 0-based position of the cytosine (C) in the first CpG
+3. `cpg2`: 0-based position of the cytosine (C) in the second CpG
+4. `cpg3`: 0-based position of the cytosine (C) in the third CpG
+5. `cpg4`: 0-based position of the cytosine (C) in the fourth CpG
+6. `me`: Value of ME
+
+*NOTE*: The order of CpG quartets in the output file is not sorted.
 
 **Fraction of discordant read pairs (FDRP)**
 
@@ -158,6 +219,15 @@ metheor fdrp --input <input.bam> --output <output.tsv>
 - `-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
 
+*Output*
+
+Produces a (BedGraph-compatible) tab-separated table with the following four columns.
+
+1. `chrom`: Chromosome where the CpG exists.
+2. `start`: 0-based position of the cytosine (C) in CpG
+3. `end`: 0-based position + 1 of the guanine (G) in CpG
+4. `fdrp`: Value of FDRP
+
 **Quantative fraction of discordant read pairs (qFDRP)**
 
 ```
@@ -179,6 +249,15 @@ Note that when the methylation states of the common CpGs are completely same, no
 - `-D, --max-depth`: Maximum number of reads to consider. [default: 40]
 - `-l, --min-overlap`: Minimum overlap between two reads to consider in basepairs. [default: 35]
 - `-c, --cpg-set`: (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
+
+*Output*
+
+Produces a (BedGraph-compatible) tab-separated table with the following four columns.
+
+1. `chrom`: Chromosome where the CpG exists.
+2. `start`: 0-based position of the cytosine (C) in CpG
+3. `end`: 0-based position + 1 of the guanine (G) in CpG
+4. `qfdrp`: Value of qFDRP
 
 ### Miscellaneous
 
