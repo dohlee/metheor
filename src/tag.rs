@@ -192,6 +192,9 @@ pub fn run(input: &str, output: &str, genome: &str) {
                     let mut tmp_count = 1;
     
                     while flag_tmp != 2 {
+                        if idx + tmp_count > target_read_seq.len() - 1 {
+                            break
+                        }
                         if char_at(&target_read_seq, idx + tmp_count) != '-' {
                             tmp_target_read_seq.push(char_at(&target_read_seq, idx + tmp_count));
                             tmp_target_ref_seq.push(char_at(&target_ref_seq, idx + tmp_count));
