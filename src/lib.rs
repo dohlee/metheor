@@ -11,7 +11,7 @@ pub mod lpmd;
 #[derive(Parser)]
 #[clap(name = "metheor")]
 #[clap(about = "Summarizes the heterogeneity of DNA methylation states using BAM files.")]
-#[clap(version = "0.1.3")]
+#[clap(version = "0.1.4")]
 #[clap(author = "Dohoon Lee. <dohlee.bioinfo@gmail.com>\nBonil Koo. <bikoo95@snu.ac.kr>\nJeewon Yang. <jwyang.ai@gmail.com>")]
 #[clap(arg_required_else_help = true)]
 pub struct Cli {
