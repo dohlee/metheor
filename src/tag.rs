@@ -75,6 +75,16 @@ pub fn run(input: &str, output: &str, genome: &str) {
     switch_base.insert('G', 'C');
     switch_base.insert('T', 'A');
     switch_base.insert('N', 'N');
+    switch_base.insert('M', 'K');
+    switch_base.insert('R', 'Y');
+    switch_base.insert('W', 'W');
+    switch_base.insert('S', 'S');
+    switch_base.insert('Y', 'R');
+    switch_base.insert('K', 'M');
+    switch_base.insert('V', 'B');
+    switch_base.insert('H', 'D');
+    switch_base.insert('D', 'H');
+    switch_base.insert('B', 'V');
     switch_base.insert('-', '-');
 
     let ref_genome = faidx::Reader::from_path(&genome)
