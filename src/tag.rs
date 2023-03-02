@@ -2,6 +2,7 @@ use rust_htslib::{bam, bam::Read, bam::record::{Aux, Cigar, Record}, bam::ext::B
 use rust_htslib::faidx;
 use std::collections::HashMap;
 use std::str;
+use std::cmp::{max, min};
 
 use crate::{bamutil};
 
@@ -104,8 +105,8 @@ pub fn run(input: &str, output: &str, genome: &str) {
 
     for mut r in reader.records().map(|r| r.unwrap()) {
         let tid = r.tid();
-        let start = r.reference_start() as usize;
-        let end = r.reference_end() as usize;
+        let start = r.reference_start();
+        let end = r.reference_end();
 
         let flag_reverse_complement = match flag_paired_end {
             true => need_reverse_complement(&r),
@@ -115,8 +116,19 @@ pub fn run(input: &str, output: &str, genome: &str) {
         let read_seq = str::from_utf8(&r.seq().as_bytes())
             .ok().expect("Error parsing read sequence.").to_string().to_uppercase();
 
-        let ref_seq = str::from_utf8(&my_ref_genome[&(tid as usize)][start - 2..end + 2])
+        let len_chrom = tid2size[&(tid as usize)] as i64;
+        let clipped_start = max(start-2, 0) as usize;
+        let pad_start = max(2-start, 0) as usize;
+
+        let clipped_end = min(end+2, len_chrom) as usize;
+        let pad_end = max(end-len_chrom+2, 0) as usize;
+
+        let ref_seq = str::from_utf8(&my_ref_genome[&(tid as usize)][clipped_start..clipped_end])
             .ok().expect("Error parsing reference genome.").to_string().to_uppercase();
+
+        let prefixes = ["", "N", "NN"];
+        let suffixes = ["", "N", "NN"];
+        let ref_seq = format!("{}{}{}", prefixes[pad_start], ref_seq, suffixes[pad_end]);
 
         let mut tmp_read_seq: Vec<char> = Vec::new();
         let mut tmp_ref_seq: Vec<char> = Vec::new();
@@ -133,7 +145,6 @@ pub fn run(input: &str, output: &str, genome: &str) {
         for cigar in r.cigar().iter() {
             match cigar {
                 Cigar::Match(length) => {
-
                     tmp_read_seq.append(&mut read_seq.chars().skip(used_read_len).take(*length as usize).collect());
                     tmp_ref_seq.append(&mut ref_seq.chars().skip(used_ref_len).take(*length as usize).collect());
 
@@ -245,8 +256,11 @@ pub fn run(input: &str, output: &str, genome: &str) {
                     let ref_context = target_ref_seq.chars().skip(idx).take(3).collect::<String>();
 
                     if (char_at(&target_ref_seq, idx) == 'C') && (char_at(&target_ref_seq, idx+1) == 'G') {
+                        // Reference context is CG, read 'C' -> 'methylated in CG context (Z)'
                         if char_at(&target_read_seq, idx) == 'C' { xm_tag.push('Z'); }
+                        // Reference context is CG, read 'T' -> 'unmethylated in CG context (z)'
                         else if char_at(&target_read_seq, idx) == 'T' { xm_tag.push('z'); }
+                        // Reference context is CG, read 'A or G' -> Nothing.
                         else { xm_tag.push('.'); }
                     }
 
