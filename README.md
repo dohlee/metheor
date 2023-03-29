@@ -279,11 +279,14 @@ We computed DNA methylation heterogeneity profiles of 928 Cancer Cell Line Encyc
 ## Citation
 
 ```
-@article{lee2022metheor,
+@article{lee2023metheor,
   title={Metheor: Ultrafast DNA methylation heterogeneity calculation from bisulfite read alignments},
   author={Lee, Dohoon and Koo, Bonil and Yang, Jeewon and Kim, Sun},
-  journal={bioRxiv},
-  year={2022},
-  publisher={Cold Spring Harbor Laboratory}
+  journal={PLOS Computational Biology},
+  volume={19},
+  number={3},
+  pages={e1010946},
+  year={2023},
+  publisher={Public Library of Science San Francisco, CA USA}
 }
 ```
