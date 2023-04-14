@@ -1,5 +1,7 @@
 # Metheor ☄
 
+![banner](img/metheor_banner_small.png)
+
 [![version](https://anaconda.org/dohlee/metheor/badges/version.svg)](https://anaconda.org/dohlee/metheor)
 [![downloads](https://anaconda.org/dohlee/metheor/badges/downloads.svg)](https://anaconda.org/dohlee/metheor)
 ![github actions](https://github.com/dohlee/metheor/actions/workflows/rust.yml/badge.svg)
