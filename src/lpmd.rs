@@ -1,11 +1,8 @@
 use rust_htslib::{bam, bam::Read};
-use std::fs;
-use std::io::Write;
-use std::vec::Vec;
-use std::str;
-use std::collections::{HashMap};
+use std::{collections::HashMap, fs};
+use std::{io::Write, str, vec::Vec};
 
-use crate::{readutil, bamutil, progressbar};
+use crate::{bamutil, progressbar, readutil};
 
 pub struct LPMDResult {
     header: bam::HeaderView,
@@ -19,8 +16,10 @@ pub struct LPMDResult {
 
 impl LPMDResult {
     fn new(header: bam::HeaderView) -> Self {
-        let pair2n_concordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32> = HashMap::new();
-        let pair2n_discordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32> = HashMap::new();
+        let pair2n_concordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32> =
+            HashMap::new();
+        let pair2n_discordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32> =
+            HashMap::new();
 
         Self {
             header: header,
@@ -50,19 +49,30 @@ impl LPMDResult {
     }
 
     fn compute_lpmd(&self) -> f32 {
-        let lpmd: f32 = (self.n_discordant as f32) / ((self.n_concordant + self.n_discordant) as f32);
+        let lpmd: f32 =
+            (self.n_discordant as f32) / ((self.n_concordant + self.n_discordant) as f32);
         lpmd
     }
 
     fn progress_string(&self) -> String {
         let lpmd = self.compute_lpmd();
 
-        format!("Processed {} reads, found {} valid reads. LPMD={:.4} ({}/{})",
-            self.n_read, self.n_valid_read, lpmd, self.n_discordant, self.n_concordant + self.n_discordant)
+        format!(
+            "Processed {} reads, found {} valid reads. LPMD={:.4} ({}/{})",
+            self.n_read,
+            self.n_valid_read,
+            lpmd,
+            self.n_discordant,
+            self.n_concordant + self.n_discordant
+        )
     }
 
-    fn add_pair_concordance(&mut self, pos1: &readutil::CpGPosition, pos2: &readutil::CpGPosition, concordance: &readutil::ReadConcordanceState) {
-        
+    fn add_pair_concordance(
+        &mut self,
+        pos1: &readutil::CpGPosition,
+        pos2: &readutil::CpGPosition,
+        concordance: &readutil::ReadConcordanceState,
+    ) {
         let n_concordant = self.pair2n_concordant.entry((*pos1, *pos2)).or_insert(0);
         let n_discordant = self.pair2n_discordant.entry((*pos1, *pos2)).or_insert(0);
 
@@ -77,17 +87,25 @@ impl LPMDResult {
     }
 
     fn print_pair_statistics(&self, output: &str) {
-        let mut pairs: Vec<&(readutil::CpGPosition, readutil::CpGPosition)> = self.pair2n_concordant.keys().collect::<Vec<&(readutil::CpGPosition, readutil::CpGPosition)>>();
+        let mut pairs: Vec<&(readutil::CpGPosition, readutil::CpGPosition)> = self
+            .pair2n_concordant
+            .keys()
+            .collect::<Vec<&(readutil::CpGPosition, readutil::CpGPosition)>>();
         pairs.sort();
 
-        let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
+        let mut out = fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .open(output)
+            .unwrap();
 
         writeln!(out, "chrom\tcpg1\tcpg2\tlpmd\tn_concordant\tn_discordant")
             .ok()
             .expect("Error writing to output file.");
 
         for (cpg1, cpg2) in pairs {
-
             let k = (*cpg1, *cpg2);
             let n_concordant = self.pair2n_concordant[&k];
             let n_discordant = self.pair2n_discordant[&k];
@@ -95,18 +113,36 @@ impl LPMDResult {
 
             let chrom = bamutil::tid2chrom(cpg1.tid, &self.header);
 
-            writeln!(out, "{}\t{}\t{}\t{}\t{}\t{}", chrom, cpg1.pos, cpg2.pos, lpmd, n_concordant, n_discordant)
-                .ok()
-                .expect("Error writing to output file.");
+            writeln!(
+                out,
+                "{}\t{}\t{}\t{}\t{}\t{}",
+                chrom, cpg1.pos, cpg2.pos, lpmd, n_concordant, n_discordant
+            )
+            .ok()
+            .expect("Error writing to output file.");
         }
     }
 }
 
-pub fn compute(input: &str, output: &str, min_distance: i32, max_distance: i32, min_qual: u8, cpg_set: &Option<String>, pairs: &Option<String>) {
+pub fn compute(
+    input: &str,
+    output: &str,
+    min_distance: i32,
+    max_distance: i32,
+    min_qual: u8,
+    cpg_set: &Option<String>,
+    pairs: &Option<String>,
+) {
     let result = compute_helper(input, min_distance, max_distance, min_qual, cpg_set);
     let lpmd = result.compute_lpmd();
 
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(true)
+        .open(output)
+        .unwrap();
 
     writeln!(out, "name\tlpmd")
         .ok()
@@ -122,8 +158,17 @@ pub fn compute(input: &str, output: &str, min_distance: i32, max_distance: i32, 
     }
 }
 
-fn compute_helper(input: &str, min_distance: i32, max_distance: i32, min_qual: u8, cpg_set: &Option<String>) -> LPMDResult {
-    eprintln!("Computing subset-LPMD with parameters input={}, min_distance={}, max_distance={}", input, min_distance, max_distance);
+fn compute_helper(
+    input: &str,
+    min_distance: i32,
+    max_distance: i32,
+    min_qual: u8,
+    cpg_set: &Option<String>,
+) -> LPMDResult {
+    eprintln!(
+        "Computing subset-LPMD with parameters input={}, min_distance={}, max_distance={}",
+        input, min_distance, max_distance
+    );
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
@@ -136,7 +181,9 @@ fn compute_helper(input: &str, min_distance: i32, max_distance: i32, min_qual: u
     // Iterate over reads and compute LPMD.
     for r in reader.records().map(|r| r.unwrap()) {
         res.inc_n_read(1);
-        if r.mapq() < min_qual { continue; }
+        if r.mapq() < min_qual {
+            continue;
+        }
 
         let mut br = readutil::BismarkRead::new(&r);
         match target_cpgs {
@@ -144,7 +191,8 @@ fn compute_helper(input: &str, min_distance: i32, max_distance: i32, min_qual: u
             None => {}
         }
 
-        let (c, d, pair2concordance) = br.compute_pairwise_cpg_concordance_discordance(min_distance, max_distance);
+        let (c, d, pair2concordance) =
+            br.compute_pairwise_cpg_concordance_discordance(min_distance, max_distance);
 
         res.inc_n_valid_read(1);
         res.inc_n_concordant(c);
@@ -152,8 +200,10 @@ fn compute_helper(input: &str, min_distance: i32, max_distance: i32, min_qual: u
         for (cpg1, cpg2, concordance) in &pair2concordance {
             res.add_pair_concordance(cpg1, cpg2, concordance);
         }
-    
-        if res.n_read % 10000 == 0 { bar.update_lpmd(res.progress_string()); }
+
+        if res.n_read % 10000 == 0 {
+            bar.update_lpmd(res.progress_string());
+        }
     }
 
     res
@@ -162,7 +212,6 @@ fn compute_helper(input: &str, min_distance: i32, max_distance: i32, min_qual: u
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::bamutil;
 
     #[test]
     fn test1() {

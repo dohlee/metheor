@@ -1,10 +1,14 @@
-use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::{Aux, Record}};
+use rust_htslib::{
+    bam,
+    bam::ext::BamRecordExtensions,
+    bam::record::{Aux, Record},
+};
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
-use std::cmp::Ordering;
-use std::collections::{HashSet, HashMap};
 
-use crate::{bamutil};
+use crate::bamutil;
 
 pub type QuartetPattern = usize;
 
@@ -18,14 +22,15 @@ pub struct BismarkRead {
 
 impl BismarkRead {
     pub fn new(r: &Record) -> Self {
-
         let mut start_pos = -1;
         let mut end_pos = -1;
 
         for abspos in r.reference_positions_full() {
             match abspos {
                 Some(abspos) => {
-                    if start_pos == -1 { start_pos = abspos as i32; }
+                    if start_pos == -1 {
+                        start_pos = abspos as i32;
+                    }
                     end_pos = abspos as i32;
                 }
                 None => {}
@@ -34,9 +39,14 @@ impl BismarkRead {
 
         match r.aux(b"XM") {
             Ok(value) => {
-                if let Aux::String(xm) = value {  // if value is a type of Aux::String, run:
+                if let Aux::String(xm) = value {
+                    // if value is a type of Aux::String, run:
                     let cpgs = get_cpgs(r, xm);
-                    Self { start_pos, end_pos, cpgs }
+                    Self {
+                        start_pos,
+                        end_pos,
+                        cpgs,
+                    }
                 } else {
                     panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
                 }
@@ -50,7 +60,7 @@ impl BismarkRead {
     pub fn get_first_cpg_position(&self) -> Option<CpGPosition> {
         match self.get_num_cpgs() {
             0 => None,
-            _ => Some(self.cpgs[0].abspos)
+            _ => Some(self.cpgs[0].abspos),
         }
     }
 
@@ -67,12 +77,14 @@ impl BismarkRead {
     }
 
     pub fn get_cpgs(&self) -> &Vec<CpG> {
-        &self.cpgs 
+        &self.cpgs
     }
 
     pub fn get_cpg_positions(&self) -> Vec<CpGPosition> {
         let mut s: Vec<CpGPosition> = Vec::new();
-        for cpg in &self.cpgs { s.push(cpg.abspos); }
+        for cpg in &self.cpgs {
+            s.push(cpg.abspos);
+        }
 
         s
     }
@@ -91,26 +103,36 @@ impl BismarkRead {
         let mut quartets: Vec<Quartet> = Vec::new();
         let mut patterns: Vec<QuartetPattern> = Vec::new();
 
-        if self.get_num_cpgs() < 4 { return (quartets, patterns) }
+        if self.get_num_cpgs() < 4 {
+            return (quartets, patterns);
+        }
 
         for i in 0..self.get_num_cpgs() - 3 {
-            let q = Quartet { 
+            let q = Quartet {
                 pos1: self.cpgs[i].abspos,
-                pos2: self.cpgs[i+1].abspos,
-                pos3: self.cpgs[i+2].abspos,
-                pos4: self.cpgs[i+3].abspos,
+                pos2: self.cpgs[i + 1].abspos,
+                pos3: self.cpgs[i + 2].abspos,
+                pos4: self.cpgs[i + 3].abspos,
             };
             let mut p = 0;
 
-            if self.cpgs[i].methylated { p += 8; }
-            if self.cpgs[i+1].methylated { p += 4; }
-            if self.cpgs[i+2].methylated { p += 2; }
-            if self.cpgs[i+3].methylated { p += 1; }
+            if self.cpgs[i].methylated {
+                p += 8;
+            }
+            if self.cpgs[i + 1].methylated {
+                p += 4;
+            }
+            if self.cpgs[i + 2].methylated {
+                p += 2;
+            }
+            if self.cpgs[i + 3].methylated {
+                p += 1;
+            }
 
             quartets.push(q);
             patterns.push(p);
         }
-        
+
         (quartets, patterns)
     }
 
@@ -119,7 +141,9 @@ impl BismarkRead {
         let mut res = ReadConcordanceState::Concordant;
 
         for cpg in &self.cpgs {
-            if cpg.methylated != init_methylated { res = ReadConcordanceState::Discordant; }
+            if cpg.methylated != init_methylated {
+                res = ReadConcordanceState::Discordant;
+            }
         }
 
         res
@@ -132,7 +156,7 @@ impl BismarkRead {
         for cpg in &self.cpgs {
             if cpg.methylated {
                 curr_stretch_length += 1;
-                for l in 1..curr_stretch_length+1 {
+                for l in 1..curr_stretch_length + 1 {
                     let v = stretch_info.entry(l).or_insert(0);
                     *v += 1;
                 }
@@ -144,9 +168,18 @@ impl BismarkRead {
         stretch_info
     }
 
-    pub fn compute_pairwise_cpg_concordance_discordance(&self, min_distance: i32, max_distance: i32) -> (i32, i32, Vec<(CpGPosition, CpGPosition, ReadConcordanceState)>) {
+    pub fn compute_pairwise_cpg_concordance_discordance(
+        &self,
+        min_distance: i32,
+        max_distance: i32,
+    ) -> (
+        i32,
+        i32,
+        Vec<(CpGPosition, CpGPosition, ReadConcordanceState)>,
+    ) {
         let mut anchors: Vec<CpG> = Vec::new();
-        let mut pair2concordance: Vec<(CpGPosition, CpGPosition, ReadConcordanceState)> = Vec::new();
+        let mut pair2concordance: Vec<(CpGPosition, CpGPosition, ReadConcordanceState)> =
+            Vec::new();
         let mut min_anchor_pos = -1;
         let mut n_concordant = 0;
         let mut n_discordant = 0;
@@ -155,7 +188,7 @@ impl BismarkRead {
             if min_anchor_pos != -1 {
                 while (cpg.relpos - min_anchor_pos > max_distance) && (anchors.len() > 0) {
                     anchors.remove(0);
-    
+
                     if anchors.len() > 0 {
                         min_anchor_pos = anchors[0].relpos;
                     } else {
@@ -163,20 +196,32 @@ impl BismarkRead {
                     }
                 }
             }
-    
+
             for anchor in anchors.iter() {
-                if cpg.relpos - anchor.relpos < min_distance { continue; }
-                
+                if cpg.relpos - anchor.relpos < min_distance {
+                    continue;
+                }
+
                 if anchor.methylated == cpg.methylated {
                     n_concordant += 1;
-                    pair2concordance.push((anchor.abspos, cpg.abspos, ReadConcordanceState::Concordant));
+                    pair2concordance.push((
+                        anchor.abspos,
+                        cpg.abspos,
+                        ReadConcordanceState::Concordant,
+                    ));
                 } else {
                     n_discordant += 1;
-                    pair2concordance.push((anchor.abspos, cpg.abspos, ReadConcordanceState::Discordant));
+                    pair2concordance.push((
+                        anchor.abspos,
+                        cpg.abspos,
+                        ReadConcordanceState::Discordant,
+                    ));
                 }
             }
-    
-            if min_anchor_pos == -1 { min_anchor_pos = cpg.relpos; }
+
+            if min_anchor_pos == -1 {
+                min_anchor_pos = cpg.relpos;
+            }
             anchors.push(*cpg);
         }
 
@@ -194,7 +239,10 @@ pub struct Quartet {
 
 impl PartialEq for Quartet {
     fn eq(&self, other: &Self) -> bool {
-        (self.pos1 == other.pos1) && (self.pos2 == other.pos2) && (self.pos3 == other.pos3) && (self.pos4 == other.pos4)
+        (self.pos1 == other.pos1)
+            && (self.pos2 == other.pos2)
+            && (self.pos3 == other.pos3)
+            && (self.pos4 == other.pos4)
     }
 }
 
@@ -206,19 +254,23 @@ impl Clone for Quartet {
 
 pub enum ReadConcordanceState {
     Concordant,
-    Discordant, 
+    Discordant,
 }
 
 #[derive(Copy)]
 pub struct CpG {
     pub relpos: i32,
     pub abspos: CpGPosition,
-    pub methylated: bool
+    pub methylated: bool,
 }
 
 impl CpG {
     fn new(relpos: i32, abspos: CpGPosition, c: char) -> Self {
-        Self { relpos, abspos, methylated: c == 'Z' }
+        Self {
+            relpos,
+            abspos,
+            methylated: c == 'Z',
+        }
     }
 }
 
@@ -230,7 +282,10 @@ impl Clone for CpG {
 
 impl ToString for CpG {
     fn to_string(&self) -> String {
-        format!("{}, {}, {}, {}", self.relpos, self.abspos.tid, self.abspos.pos, self.methylated)
+        format!(
+            "{}, {}, {}, {}",
+            self.relpos, self.abspos.tid, self.abspos.pos, self.methylated
+        )
     }
 }
 
@@ -262,7 +317,7 @@ impl CpGPosition {
 
 impl fmt::Display for CpGPosition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}\t{}\t{}", self.tid, self.pos, self.pos+2)
+        write!(f, "{}\t{}\t{}", self.tid, self.pos, self.pos + 2)
     }
 }
 
@@ -291,47 +346,55 @@ impl Clone for CpGPosition {
 }
 
 fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
-    let mut cpgs:Vec<CpG> = Vec::new();
+    let mut cpgs: Vec<CpG> = Vec::new();
 
     for (relpos, (abspos, c)) in r.reference_positions_full().zip(xm.chars()).enumerate() {
-    
-        if (c != 'z') && (c != 'Z') { continue; }
+        if (c != 'z') && (c != 'Z') {
+            continue;
+        }
 
         match abspos {
             Some(abspos) => {
-                if (r.flags() == 0) || (r.flags() == 99) || (r.flags() == 147) { // Forward
+                if (r.flags() == 0) || (r.flags() == 99) || (r.flags() == 147) {
+                    // Forward
                     let cpgpos = CpGPosition::new(r.tid(), abspos as i32);
                     cpgs.push(CpG::new(relpos as i32, cpgpos, c));
-                } else { // Reverse
+                } else {
+                    // Reverse
                     let cpgpos = CpGPosition::new(r.tid(), (abspos - 1) as i32);
                     cpgs.push(CpG::new(relpos as i32, cpgpos, c));
                 }
-            },
+            }
             None => {}
         }
     }
 
-    return cpgs
+    return cpgs;
 }
 
-pub fn get_target_cpgs(cpg_set: &Option<String>, header: &bam::HeaderView) -> Option<HashSet<CpGPosition>> {
+pub fn get_target_cpgs(
+    cpg_set: &Option<String>,
+    header: &bam::HeaderView,
+) -> Option<HashSet<CpGPosition>> {
     match cpg_set {
         Some(cpg_set) => {
             eprint!("Processing target CpG set... ");
             let mut target_cpgs: HashSet<CpGPosition> = HashSet::new();
-            
-            let contents = fs::read_to_string(cpg_set)
-                            .expect("Could not read target CpG file.");
-            
+
+            let contents = fs::read_to_string(cpg_set).expect("Could not read target CpG file.");
+
             for line in contents.lines() {
                 let tokens: Vec<&str> = line.split("\t").collect();
-            
+
                 let chrom = tokens[0];
                 let pos = tokens[1].parse::<i32>().unwrap();
-                
-                target_cpgs.insert(CpGPosition{ tid: bamutil::chrom2tid(chrom.as_bytes(), header) as i32, pos: pos });
+
+                target_cpgs.insert(CpGPosition {
+                    tid: bamutil::chrom2tid(chrom.as_bytes(), header) as i32,
+                    pos: pos,
+                });
             }
-        
+
             Some(target_cpgs)
         }
         None => None,
@@ -340,8 +403,8 @@ pub fn get_target_cpgs(cpg_set: &Option<String>, header: &bam::HeaderView) -> Op
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::bamutil;
+    use super::*;
     use rust_htslib::bam::Read;
 
     #[test]
@@ -350,7 +413,7 @@ mod tests {
         let mut reader = bamutil::get_reader(&input);
         for r in reader.records() {
             let r = r.unwrap();
-            let br = BismarkRead::new(&r);
+            let _br = BismarkRead::new(&r);
         }
     }
 
@@ -365,7 +428,6 @@ mod tests {
             br.get_concordance_state();
         }
     }
-
 
     #[test]
     fn pairwise_concordance_discordance_no_pair() {
@@ -390,14 +452,14 @@ mod tests {
         let mut n_read = 0;
         let mut n_discordant_read = 0;
         for r in reader.records() {
-            let mut r = r.unwrap();
+            let r = r.unwrap();
 
             let br = BismarkRead::new(&r);
 
             n_read += 1;
             match br.get_concordance_state() {
-                ReadConcordanceState::Concordant => {},
-                ReadConcordanceState::Discordant => { n_discordant_read += 1 }
+                ReadConcordanceState::Concordant => {}
+                ReadConcordanceState::Discordant => n_discordant_read += 1,
             }
         }
 
@@ -410,7 +472,7 @@ mod tests {
         let pos1 = CpGPosition { tid: 0, pos: 1 };
         let pos2 = CpGPosition { tid: 0, pos: 1 };
         let pos3 = CpGPosition { tid: 0, pos: 2 };
-        let pos4 = CpGPosition { tid: 1, pos: 1};
+        let pos4 = CpGPosition { tid: 1, pos: 1 };
 
         assert_eq!(pos1 == pos2, true);
         assert_eq!(pos1 != pos3, true);

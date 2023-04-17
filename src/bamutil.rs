@@ -29,7 +29,9 @@ pub fn is_paired_end(input: &str) -> bool {
     let mut flag = false;
 
     for r in reader.records().map(|r| r.unwrap()) {
-        if r.is_paired() { flag = true; }
+        if r.is_paired() {
+            flag = true;
+        }
         break;
     }
 

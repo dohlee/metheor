@@ -1,10 +1,10 @@
 use rust_htslib::{bam, bam::Read};
+use std::collections::HashMap;
 use std::fs;
-use std::str;
 use std::io::Write;
-use std::collections::{HashMap};
+use std::str;
 
-use crate::{readutil, bamutil, progressbar};
+use crate::{bamutil, progressbar, readutil};
 
 pub struct PMResult {
     pos1: readutil::CpGPosition,
@@ -15,7 +15,6 @@ pub struct PMResult {
 }
 
 impl PMResult {
-
     fn new(q: readutil::Quartet) -> Self {
         let pos1 = q.pos1;
         let pos2 = q.pos2;
@@ -23,7 +22,13 @@ impl PMResult {
         let pos4 = q.pos4;
 
         let quartet_pattern_counts = [0; 16];
-        Self{ pos1, pos2, pos3, pos4, quartet_pattern_counts }
+        Self {
+            pos1,
+            pos2,
+            pos3,
+            pos4,
+            quartet_pattern_counts,
+        }
     }
 
     fn get_read_depth(&self) -> u32 {
@@ -48,7 +53,10 @@ impl PMResult {
     fn to_bedgraph_field(&self, header: &bam::HeaderView) -> String {
         let chrom = bamutil::tid2chrom(self.pos1.tid, header);
         let pm = self.compute_pm();
-        format!("{}\t{}\t{}\t{}\t{}\t{}", chrom, self.pos1.pos, self.pos2.pos, self.pos3.pos, self.pos4.pos, pm)
+        format!(
+            "{}\t{}\t{}\t{}\t{}\t{}",
+            chrom, self.pos1.pos, self.pos2.pos, self.pos3.pos, self.pos4.pos, pm
+        )
     }
 }
 
@@ -58,16 +66,28 @@ pub fn compute(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set:
 
     let result = compute_helper(input, min_qual, cpg_set);
 
-    let mut out = fs::OpenOptions::new().create(true).read(true).write(true).truncate(true).open(output).unwrap();
+    let mut out = fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(true)
+        .open(output)
+        .unwrap();
     for stat in result.values() {
-        if stat.get_read_depth() < min_depth { continue; }
+        if stat.get_read_depth() < min_depth {
+            continue;
+        }
         writeln!(out, "{}", stat.to_bedgraph_field(&header))
             .ok()
             .expect("Error writing to output file.");
     }
 }
 
-pub fn compute_helper(input: &str, min_qual: u8, cpg_set: &Option<String>) -> HashMap<readutil::Quartet, PMResult> {
+pub fn compute_helper(
+    input: &str,
+    min_qual: u8,
+    cpg_set: &Option<String>,
+) -> HashMap<readutil::Quartet, PMResult> {
     let mut reader = bamutil::get_reader(&input);
     let header = bamutil::get_header(&reader);
 
@@ -90,7 +110,9 @@ pub fn compute_helper(input: &str, min_qual: u8, cpg_set: &Option<String>) -> Ha
 
         readcount += 1;
 
-        if r.mapq() < min_qual { continue; }
+        if r.mapq() < min_qual {
+            continue;
+        }
         valid_readcount += 1;
 
         let (quartets, patterns) = br.get_cpg_quartets_and_patterns();
@@ -99,7 +121,9 @@ pub fn compute_helper(input: &str, min_qual: u8, cpg_set: &Option<String>) -> Ha
 
             stat.add_quartet_pattern(*p);
         }
-        if readcount % 10000 == 0 { bar.update(readcount, valid_readcount) };
+        if readcount % 10000 == 0 {
+            bar.update(readcount, valid_readcount)
+        };
     }
 
     quartet2stat
@@ -108,7 +132,6 @@ pub fn compute_helper(input: &str, min_qual: u8, cpg_set: &Option<String>) -> Ha
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::bamutil;
 
     #[test]
     fn test1() {
@@ -120,8 +143,8 @@ mod tests {
 
         assert_eq!(quartet2stat.len(), 1);
 
-        for (quartet, reads) in quartet2stat.iter() {
-            assert_eq!(reads.compute_pm(), 1.0 - 16.0 * (1.0/16.0) * (1.0/16.0));
+        for (_, reads) in quartet2stat.iter() {
+            assert_eq!(reads.compute_pm(), 1.0 - 16.0 * (1.0 / 16.0) * (1.0 / 16.0));
         }
     }
 
@@ -135,8 +158,8 @@ mod tests {
 
         assert_eq!(quartet2stat.len(), 1);
 
-        for (quartet, reads) in quartet2stat.iter() {
-            assert_eq!(reads.compute_pm(), 1.0 - 2.0 * (8.0/16.0) * (8.0/16.0));
+        for (_, reads) in quartet2stat.iter() {
+            assert_eq!(reads.compute_pm(), 1.0 - 2.0 * (8.0 / 16.0) * (8.0 / 16.0));
         }
     }
     #[test]
@@ -149,8 +172,8 @@ mod tests {
 
         assert_eq!(quartet2stat.len(), 1);
 
-        for (quartet, reads) in quartet2stat.iter() {
-            assert_eq!(reads.compute_pm(), 1.0 - 2.0 * (1.0/2.0) * (1.0/2.0));
+        for (_, reads) in quartet2stat.iter() {
+            assert_eq!(reads.compute_pm(), 1.0 - 2.0 * (1.0 / 2.0) * (1.0 / 2.0));
         }
     }
     #[test]
@@ -163,8 +186,8 @@ mod tests {
 
         assert_eq!(quartet2stat.len(), 2);
 
-        for (quartet, reads) in quartet2stat.iter() {
-            assert_eq!(reads.compute_pm(), 1.0 - 16.0 * (1.0/16.0) * (1.0/16.0));
+        for (_, reads) in quartet2stat.iter() {
+            assert_eq!(reads.compute_pm(), 1.0 - 16.0 * (1.0 / 16.0) * (1.0 / 16.0));
         }
     }
     #[test]
