@@ -2,9 +2,10 @@ use rust_htslib::{bam, bam::Read};
 use std::str;
 
 pub fn get_reader(input: &str) -> bam::Reader {
-    let reader = bam::Reader::from_path(&input)
-        .ok()
-        .expect("Error opening BAM file.");
+    let reader = match bam::Reader::from_path(&input) {
+        Ok(reader) => reader,
+        Err(error) => panic!("Error opening BAM file: {}", error),
+    };
 
     reader
 }

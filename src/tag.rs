@@ -21,10 +21,10 @@ fn need_reverse_complement(read: &Record) -> bool {
     }
 }
 
-fn reverse_complement(seq: &str, switch_base: &HashMap<char, char>) -> String {
+fn reverse_complement(seq: &str, rcmapping: &HashMap<char, char>) -> String {
     let mut res: String = String::with_capacity(seq.len());
     for base in seq.chars().rev() {
-        res.push(switch_base[&base]);
+        res.push(rcmapping[&base]);
     }
 
     res
@@ -60,44 +60,66 @@ fn is_unknown_context(seq: &str) -> bool {
     flag
 }
 
-pub fn run(input: &str, output: &str, genome: &str) {
-    let mut reader = bamutil::get_reader(&input);
-    let header = bamutil::get_header(&reader);
-
+pub fn get_header_template_from_bam(input: &str) -> bam::Header {
     let bam = bam::Reader::from_path(&input).unwrap();
-    let header_ = bam::Header::from_template(bam.header());
+
+    bam::Header::from_template(bam.header())
+}
+
+pub fn get_tid2size_from_bam(input: &str) -> HashMap<usize, usize> {
+    let header_ = get_header_template_from_bam(input);
 
     let mut tid2size: HashMap<usize, usize> = HashMap::new();
-
     for (key, records) in header_.to_hashmap() {
+        // SQ = Reference sequence dictionary.
+        // The order of @SQ lines defines the alignment sorting order.
+        // Each @SQ entry has "SN" (Reference sequence name) and "LN" (Reference sequence length) field.
+        // https://samtools.github.io/hts-specs/SAMv1.pdf
         if key == "SQ" {
             for (tid, record) in records.iter().enumerate() {
                 tid2size.insert(tid, record["LN"].parse().unwrap());
             }
         }
     }
+    tid2size
+}
 
-    let mut switch_base: HashMap<char, char> = HashMap::new();
-    switch_base.insert('A', 'T');
-    switch_base.insert('C', 'G');
-    switch_base.insert('G', 'C');
-    switch_base.insert('T', 'A');
-    switch_base.insert('N', 'N');
-    switch_base.insert('M', 'K');
-    switch_base.insert('R', 'Y');
-    switch_base.insert('W', 'W');
-    switch_base.insert('S', 'S');
-    switch_base.insert('Y', 'R');
-    switch_base.insert('K', 'M');
-    switch_base.insert('V', 'B');
-    switch_base.insert('H', 'D');
-    switch_base.insert('D', 'H');
-    switch_base.insert('B', 'V');
-    switch_base.insert('-', '-');
+pub fn get_rcmapping() -> HashMap<char, char> {
+    // reverse-complement mapping
+    let mut rcmapping: HashMap<char, char> = HashMap::new();
+    rcmapping.insert('A', 'T');
+    rcmapping.insert('C', 'G');
+    rcmapping.insert('G', 'C');
+    rcmapping.insert('T', 'A');
+    rcmapping.insert('N', 'N');
+    rcmapping.insert('M', 'K');
+    rcmapping.insert('R', 'Y');
+    rcmapping.insert('W', 'W');
+    rcmapping.insert('S', 'S');
+    rcmapping.insert('Y', 'R');
+    rcmapping.insert('K', 'M');
+    rcmapping.insert('V', 'B');
+    rcmapping.insert('H', 'D');
+    rcmapping.insert('D', 'H');
+    rcmapping.insert('B', 'V');
+    rcmapping.insert('-', '-');
 
-    let ref_genome = faidx::Reader::from_path(&genome)
-        .ok()
-        .expect("Error opening reference genome file");
+    rcmapping
+}
+
+pub fn run(input: &str, output: &str, genome: &str) {
+    let mut reader = bamutil::get_reader(&input);
+    let header = bamutil::get_header(&reader);
+    let tid2size: HashMap<usize, usize> = get_tid2size_from_bam(&input);
+
+    let rcmapping = get_rcmapping();
+
+    let ref_genome_result = faidx::Reader::from_path(&genome);
+    let ref_genome = match ref_genome_result {
+        Ok(ref_genome) => ref_genome,
+        Err(error) => panic!("Error opening reference genome file: {}", error),
+    };
+
     let flag_paired_end = bamutil::is_paired_end(&input);
 
     println!("Parsing reference genome...");
@@ -111,9 +133,15 @@ pub fn run(input: &str, output: &str, genome: &str) {
     }
     println!("Done!");
 
-    let mut writer = bam::Writer::from_path(&output, &header_, bam::Format::Bam)
-        .ok()
-        .expect("Error opening BAM file to write.");
+    let writer_result = bam::Writer::from_path(
+        &output,
+        &get_header_template_from_bam(input),
+        bam::Format::Bam,
+    );
+    let mut writer = match writer_result {
+        Ok(writer) => writer,
+        Err(error) => panic!("Error opening BAM file to write: {}", error),
+    };
 
     for mut r in reader.records().map(|r| r.unwrap()) {
         let tid = r.tid();
@@ -232,8 +260,8 @@ pub fn run(input: &str, output: &str, genome: &str) {
                 .take(tmp_ref_seq.len() - 2)
                 .collect::<String>();
 
-            target_read_seq = reverse_complement(&read, &switch_base);
-            target_ref_seq = reverse_complement(&reference, &switch_base);
+            target_read_seq = reverse_complement(&read, &rcmapping);
+            target_ref_seq = reverse_complement(&reference, &rcmapping);
         } else {
             target_read_seq = tmp_read_seq.iter().skip(2).collect::<String>();
             target_ref_seq = tmp_ref_seq.iter().skip(2).collect::<String>();
@@ -379,14 +407,25 @@ mod tests {
 
     #[test]
     fn test_reverse_complement() {
-        let mut switch_base: HashMap<char, char> = HashMap::new();
-        switch_base.insert('A', 'T');
-        switch_base.insert('C', 'G');
-        switch_base.insert('G', 'C');
-        switch_base.insert('T', 'A');
-        switch_base.insert('N', 'N');
-        switch_base.insert('-', '-');
-
-        assert_eq!("ATGC", reverse_complement("GCAT", &switch_base));
+        let rcmapping = get_rcmapping();
+        assert_eq!("ATGC", reverse_complement("GCAT", &rcmapping));
+    }
+    #[test]
+    #[should_panic]
+    fn error_when_input_is_not_found() {
+        run(
+            "tests/there_is_no_such.bam",
+            "tests/out.tagged.bam",
+            "tests/tinyref.fa",
+        )
+    }
+    #[test]
+    #[should_panic]
+    fn error_when_reference_genome_is_not_found() {
+        run(
+            "tests/test1.bam",
+            "tests/out.tagged.bam",
+            "tests/there_is_no_such.fa",
+        )
     }
 }
