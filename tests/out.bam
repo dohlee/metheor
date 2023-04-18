@@ -1,0 +1,4 @@
+@HD	VN:1.0	SO:coordinate
+@SQ	SN:chr19	LN:58617616
+@PG	ID:Bismark	CL:"bismark -o result/02_bismark --parallel 4 --fastq --phred33-quals -N 0 /data/project/dohoon/reference/hg38 result/01_trim-galore/SRR8633202.trimmed.fastq.gz"	VN:v0.22.3
+@PG	ID:samtools	PN:samtools	PP:Bismark	VN:1.14	CL:samtools view -H SRR8633202.bismark.sorted.noXM.bam

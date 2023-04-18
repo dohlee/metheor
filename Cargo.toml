@@ -15,3 +15,8 @@ csv = "1.1"
 indicatif = "0.16.2"
 clap = { version = "3.0.5", features = ["derive"] }
 interval-tree = { git = "https://github.com/zaeleus/interval-tree.git", tag = "v0.2.0" }
+
+[dev-dependencies]
+assert_cmd = "2.0.8"
+predicates = "2.1.5"
+md5 = "0.7.0"
