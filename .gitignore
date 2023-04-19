@@ -1,3 +1,5 @@
 /target
 
 extract_pairs.py
+
+tests/*.tsv
