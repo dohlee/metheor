@@ -55,6 +55,8 @@ impl AssociatedReads {
         let start_relative_pos = MAX_READ_LEN + (br.get_start_pos() - self.pos.pos);
         let end_relative_pos = MAX_READ_LEN + (br.get_end_pos() - self.pos.pos);
 
+        if end_relative_pos >= MAX_READ_LEN * 2 + 1 { return }
+
         for relative_pos in start_relative_pos..end_relative_pos + 1 {
             new_read[relative_pos as usize] |= 1;
         }
