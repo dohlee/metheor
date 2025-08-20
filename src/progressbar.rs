@@ -1,7 +1,11 @@
-use indicatif;
-
 pub struct ProgressBar {
     bar: indicatif::ProgressBar,
+}
+
+impl Default for ProgressBar {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ProgressBar {
@@ -11,7 +15,7 @@ impl ProgressBar {
             indicatif::ProgressStyle::default_bar().template("{spinner} {elapsed_precise} {msg}"),
         );
 
-        Self { bar: bar }
+        Self { bar }
     }
 
     pub fn inc_length(&self, i: u64) {

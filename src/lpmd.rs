@@ -22,13 +22,13 @@ impl LPMDResult {
             HashMap::new();
 
         Self {
-            header: header,
+            header,
             n_read: 0,
             n_valid_read: 0,
             n_concordant: 0,
             n_discordant: 0,
-            pair2n_concordant: pair2n_concordant,
-            pair2n_discordant: pair2n_discordant,
+            pair2n_concordant,
+            pair2n_discordant,
         }
     }
 
@@ -102,7 +102,6 @@ impl LPMDResult {
             .unwrap();
 
         writeln!(out, "chrom\tcpg1\tcpg2\tlpmd\tn_concordant\tn_discordant")
-            .ok()
             .expect("Error writing to output file.");
 
         for (cpg1, cpg2) in pairs {
@@ -118,7 +117,6 @@ impl LPMDResult {
                 "{}\t{}\t{}\t{}\t{}\t{}",
                 chrom, cpg1.pos, cpg2.pos, lpmd, n_concordant, n_discordant
             )
-            .ok()
             .expect("Error writing to output file.");
         }
     }
@@ -144,17 +142,12 @@ pub fn compute(
         .open(output)
         .unwrap();
 
-    writeln!(out, "name\tlpmd")
-        .ok()
-        .expect("Error writing to output file.");
+    writeln!(out, "name\tlpmd").expect("Error writing to output file.");
 
-    writeln!(out, "{}\t{}", input, lpmd)
-        .ok()
-        .expect("Error writing to output file.");
+    writeln!(out, "{}\t{}", input, lpmd).expect("Error writing to output file.");
 
-    match pairs {
-        Some(f) => result.print_pair_statistics(f),
-        None => (),
+    if let Some(f) = pairs {
+        result.print_pair_statistics(f);
     }
 }
 
@@ -169,7 +162,7 @@ fn compute_helper(
         "Computing subset-LPMD with parameters input={}, min_distance={}, max_distance={}",
         input, min_distance, max_distance
     );
-    let mut reader = bamutil::get_reader(&input);
+    let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     eprint!("Processing target CpG set... ");
@@ -186,9 +179,8 @@ fn compute_helper(
         }
 
         let mut br = readutil::BismarkRead::new(&r);
-        match target_cpgs {
-            Some(target_cpgs) => br.filter_isin(target_cpgs),
-            None => {}
+        if let Some(target_cpgs) = target_cpgs {
+            br.filter_isin(target_cpgs);
         }
 
         let (c, d, pair2concordance) =

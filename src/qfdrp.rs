@@ -58,7 +58,7 @@ impl AssociatedReads {
         if start_relative_pos < 0 {
             return;
         }
-        if end_relative_pos >= MAX_READ_LEN * 2 + 1 {
+        if end_relative_pos > MAX_READ_LEN * 2 {
             return;
         }
 
@@ -124,10 +124,10 @@ impl AssociatedReads {
 
         let mut dist = 0.0;
         for p in 0..MAX_READ_LEN * 2 + 1 {
-            if (r1[p as usize] & r2[p as usize]) & 3 == 3 {
-                if ((r1[p as usize] ^ r2[p as usize]) & 4) >> 2 == 1 {
-                    dist += 1.0;
-                }
+            if (r1[p as usize] & r2[p as usize]) & 3 == 3
+                && ((r1[p as usize] ^ r2[p as usize]) & 4) >> 2 == 1
+            {
+                dist += 1.0;
             }
         }
 
@@ -168,7 +168,7 @@ pub fn compute(
 ) {
     let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, cpg_set);
 
-    let reader = bamutil::get_reader(&input);
+    let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     let mut out = fs::OpenOptions::new()
@@ -181,7 +181,6 @@ pub fn compute(
     for (cpg, fdrp) in result.iter() {
         let chrom = bamutil::tid2chrom(cpg.tid, &header);
         writeln!(out, "{}\t{}\t{}\t{}", chrom, cpg.pos, cpg.pos + 2, fdrp)
-            .ok()
             .expect("Error writing to output file.");
     }
 }
@@ -194,7 +193,7 @@ fn compute_helper(
     min_overlap: i32,
     cpg_set: &Option<String>,
 ) -> BTreeMap<readutil::CpGPosition, f32> {
-    let mut reader = bamutil::get_reader(&input);
+    let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     let mut readcount = 0;
@@ -209,9 +208,8 @@ fn compute_helper(
 
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
-        match target_cpgs {
-            Some(target_cpgs) => br.filter_isin(target_cpgs),
-            None => {}
+        if let Some(target_cpgs) = target_cpgs {
+            br.filter_isin(target_cpgs);
         }
 
         readcount += 1;
@@ -222,23 +220,17 @@ fn compute_helper(
             continue;
         }
 
-        match br.get_first_cpg_position() {
-            Some(first_cpg_position) => {
-                cpg2reads.retain(|&cpg, reads| {
-                    let retain = {
-                        if cpg < first_cpg_position {
-                            if reads.get_num_reads() >= min_depth {
-                                result.insert(cpg, reads.compute_qfdrp(min_overlap));
-                            }
-                            false
-                        } else {
-                            true
-                        }
-                    };
-                    retain
-                }); // Finalize and compute metric for the CpGs before the first CpG in this read.
-            }
-            None => {}
+        if let Some(first_cpg_position) = br.get_first_cpg_position() {
+            cpg2reads.retain(|&cpg, reads| {
+                if cpg < first_cpg_position {
+                    if reads.get_num_reads() >= min_depth {
+                        result.insert(cpg, reads.compute_qfdrp(min_overlap));
+                    }
+                    false
+                } else {
+                    true
+                }
+            }); // Finalize and compute metric for the CpGs before the first CpG in this read.
         }
 
         for cpg_position in br.get_cpg_positions().iter() {
@@ -271,7 +263,7 @@ mod tests {
     use super::*;
 
     fn assert_approximately_equal(a: f32, b: f32) {
-        assert_eq!((a - b) < 1e-5, true);
+        assert!((a - b) < 1e-5);
     }
 
     #[test]
@@ -279,7 +271,7 @@ mod tests {
         let input = "tests/test1.bam";
         let max_depth = 40;
 
-        let mut reader = bamutil::get_reader(&input);
+        let mut reader = bamutil::get_reader(input);
 
         let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
 
@@ -295,7 +287,7 @@ mod tests {
             }
         }
 
-        for (_, reads) in cpg2reads.iter() {
+        if let Some((_, reads)) = cpg2reads.iter().next() {
             assert_eq!(reads.hamming_distance(0, 1), 1.0);
             assert_eq!(reads.hamming_distance(0, 2), 1.0);
             assert_eq!(reads.hamming_distance(0, 3), 2.0);
@@ -311,7 +303,6 @@ mod tests {
             assert_eq!(reads.hamming_distance(0, 13), 3.0);
             assert_eq!(reads.hamming_distance(0, 14), 3.0);
             assert_eq!(reads.hamming_distance(0, 15), 4.0);
-            break;
         }
     }
     #[test]
@@ -319,7 +310,7 @@ mod tests {
         let input = "tests/test1.bam";
         let max_depth = 40;
 
-        let mut reader = bamutil::get_reader(&input);
+        let mut reader = bamutil::get_reader(input);
 
         let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
 
@@ -344,7 +335,7 @@ mod tests {
         let input = "tests/test1.bam";
         let max_depth = 40;
 
-        let mut reader = bamutil::get_reader(&input);
+        let mut reader = bamutil::get_reader(input);
 
         let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
 
@@ -360,9 +351,8 @@ mod tests {
             }
         }
 
-        for (_, reads) in cpg2reads.iter() {
+        if let Some((_, reads)) = cpg2reads.iter().next() {
             assert_eq!(reads.get_num_overlap_cpgs(0, 1), 4);
-            break;
         }
     }
     #[test]

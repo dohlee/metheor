@@ -13,13 +13,8 @@ use std::str;
 use crate::bamutil;
 
 fn need_reverse_complement(read: &Record) -> bool {
-    if (!read.is_reverse() && read.is_first_in_template())
-        || (read.is_reverse() && read.is_last_in_template())
-    {
-        return false;
-    } else {
-        return true;
-    }
+    !((!read.is_reverse() && read.is_first_in_template())
+        || (read.is_reverse() && read.is_last_in_template()))
 }
 
 fn reverse_complement(seq: &str, rcmapping: &HashMap<char, char>) -> String {
@@ -35,17 +30,14 @@ fn char_at(seq: &str, i: usize) -> char {
 }
 
 fn is_chg_context(seq: &str) -> bool {
-    match seq {
-        "CAG" | "CTG" | "CCG" => true,
-        _ => false,
-    }
+    matches!(seq, "CAG" | "CTG" | "CCG")
 }
 
 fn is_chh_context(seq: &str) -> bool {
-    match seq {
-        "CAA" | "CAT" | "CAC" | "CTA" | "CTT" | "CTC" | "CCA" | "CCT" | "CCC" => true,
-        _ => false,
-    }
+    matches!(
+        seq,
+        "CAA" | "CAT" | "CAC" | "CTA" | "CTT" | "CTC" | "CCA" | "CCT" | "CCC"
+    )
 }
 
 fn is_unknown_context(seq: &str) -> bool {
@@ -60,7 +52,7 @@ fn is_unknown_context(seq: &str) -> bool {
 }
 
 pub fn get_header_template_from_bam(input: &str) -> bam::Header {
-    let bam = bam::Reader::from_path(&input).unwrap();
+    let bam = bam::Reader::from_path(input).unwrap();
     bam::Header::from_template(bam.header())
 }
 
@@ -147,7 +139,7 @@ pub fn determine_xm_tag_string(
     let end = r.reference_end();
 
     let flag_reverse_complement = match is_paired_end {
-        true => need_reverse_complement(&r),
+        true => need_reverse_complement(r),
         false => r.is_reverse(),
     };
 
@@ -184,7 +176,7 @@ pub fn determine_xm_tag_string(
     tmp_read_seq.push('-');
     tmp_read_seq.push('-');
 
-    tmp_ref_seq.push(ref_seq.chars().nth(0).unwrap());
+    tmp_ref_seq.push(ref_seq.chars().next().unwrap());
     tmp_ref_seq.push(ref_seq.chars().nth(1).unwrap());
 
     let mut used_read_len: usize = 0;
@@ -219,16 +211,12 @@ pub fn determine_xm_tag_string(
                         .take(*length as usize)
                         .collect(),
                 );
-                for _ in 0..*length {
-                    tmp_ref_seq.push('-');
-                }
+                tmp_ref_seq.extend(std::iter::repeat_n('-', *length as usize));
 
                 used_read_len += *length as usize;
             }
             Cigar::Del(length) => {
-                for _ in 0..*length {
-                    tmp_read_seq.push('-');
-                }
+                tmp_read_seq.extend(std::iter::repeat_n('-', *length as usize));
                 tmp_ref_seq.append(
                     &mut ref_seq
                         .chars()
@@ -262,8 +250,8 @@ pub fn determine_xm_tag_string(
             .take(tmp_ref_seq.len() - 2)
             .collect::<String>();
 
-        target_read_seq = reverse_complement(&read, &rcmapping);
-        target_ref_seq = reverse_complement(&reference, &rcmapping);
+        target_read_seq = reverse_complement(&read, rcmapping);
+        target_ref_seq = reverse_complement(&reference, rcmapping);
     } else {
         target_read_seq = tmp_read_seq.iter().skip(2).collect::<String>();
         target_ref_seq = tmp_ref_seq.iter().skip(2).collect::<String>();
@@ -395,10 +383,10 @@ pub fn determine_xm_tag_string(
 }
 
 pub fn run(input: &str, output: &str, genome: &str) {
-    let mut reader = bamutil::get_reader(&input);
-    let is_paired_end = bamutil::is_paired_end(&input);
+    let mut reader = bamutil::get_reader(input);
+    let is_paired_end = bamutil::is_paired_end(input);
     let header = bamutil::get_header(&reader);
-    let tid2size: HashMap<usize, usize> = get_tid2size_from_bam(&input);
+    let tid2size: HashMap<usize, usize> = get_tid2size_from_bam(input);
 
     let rcmapping = get_rcmapping();
 
@@ -413,13 +401,13 @@ pub fn run(input: &str, output: &str, genome: &str) {
         )
     }
     // Prepare output writer.
-    let header_tmpl = get_header_template_from_bam(&input);
-    let mut writer = match bam::Writer::from_path(&output, &header_tmpl, bam::Format::Sam) {
+    let header_tmpl = get_header_template_from_bam(input);
+    let mut writer = match bam::Writer::from_path(output, &header_tmpl, bam::Format::Sam) {
         Ok(writer) => writer,
         Err(error) => panic!("Error opening alignment file to write: {}", error),
     };
     // Prepare reference genome.
-    let refgenome_reader = match faidx::Reader::from_path(&genome) {
+    let refgenome_reader = match faidx::Reader::from_path(genome) {
         Ok(refgenome_reader) => refgenome_reader,
         Err(error) => {
             panic!("Error opening reference genome file: {}", error);
@@ -449,10 +437,7 @@ pub fn run(input: &str, output: &str, genome: &str) {
             Err(e) => panic!("Error adding XM tag to alignment record. {}", e),
         }
         // Write record to output.
-        writer
-            .write(&r)
-            .ok()
-            .expect("Error writing to output file.");
+        writer.write(&r).expect("Error writing to output file.");
     }
 }
 

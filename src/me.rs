@@ -43,7 +43,7 @@ impl QuartetStat {
         let mut me: f32 = 0.0;
 
         let total: u32 = self.quartet_pattern_counts.iter().sum();
-        for (_, count) in self.quartet_pattern_counts.iter().enumerate() {
+        for count in self.quartet_pattern_counts.iter() {
             let p: f32 = (*count as f32) / (total as f32);
             if *count > 0 {
                 me += p * p.log2();
@@ -66,7 +66,7 @@ impl QuartetStat {
 }
 
 pub fn compute(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set: &Option<String>) {
-    let reader = bamutil::get_reader(&input);
+    let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     let result = compute_helper(input, min_qual, cpg_set);
@@ -83,7 +83,6 @@ pub fn compute(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set:
             continue;
         }
         writeln!(out, "{}", stat.to_bedgraph_field(&header))
-            .ok()
             .expect("Error writing to output file.");
     }
 }
@@ -93,7 +92,7 @@ pub fn compute_helper(
     min_qual: u8,
     cpg_set: &Option<String>,
 ) -> HashMap<readutil::Quartet, QuartetStat> {
-    let mut reader = bamutil::get_reader(&input);
+    let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
@@ -107,9 +106,8 @@ pub fn compute_helper(
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
 
-        match target_cpgs {
-            Some(target_cpgs) => br.filter_isin(target_cpgs),
-            None => {}
+        if let Some(target_cpgs) = target_cpgs {
+            br.filter_isin(target_cpgs);
         }
 
         readcount += 1;

@@ -88,7 +88,7 @@ impl PartialEq for AssociatedReads {
 
 impl PartialOrd for AssociatedReads {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 
@@ -106,7 +106,7 @@ pub fn compute(
     min_qual: u8,
     cpg_set: &Option<String>,
 ) {
-    let reader = bamutil::get_reader(&input);
+    let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     let result = compute_helper(input, min_depth, min_cpgs, min_qual, cpg_set);
@@ -128,7 +128,6 @@ pub fn compute(
             cpg.pos + 2,
             mhl
         )
-        .ok()
         .expect("Error writing to output file.");
     }
 }
@@ -140,7 +139,7 @@ pub fn compute_helper(
     min_qual: u8,
     cpg_set: &Option<String>,
 ) -> BTreeMap<readutil::CpGPosition, f32> {
-    let mut reader = bamutil::get_reader(&input);
+    let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
@@ -156,28 +155,21 @@ pub fn compute_helper(
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
 
-        match target_cpgs {
-            Some(target_cpgs) => br.filter_isin(target_cpgs),
-            None => {}
+        if let Some(target_cpgs) = target_cpgs {
+            br.filter_isin(target_cpgs);
         }
 
-        match br.get_first_cpg_position() {
-            Some(first_cpg_position) => {
-                cpg2reads.retain(|&cpg, reads| {
-                    let retain = {
-                        if cpg < first_cpg_position {
-                            if reads.get_coverage() >= min_depth {
-                                result.insert(cpg, reads.compute_mhl());
-                            }
-                            false
-                        } else {
-                            true
-                        }
-                    };
-                    retain
-                }); // Finalize and compute metric for the CpGs before the first CpG in this read.
-            }
-            None => {}
+        if let Some(first_cpg_position) = br.get_first_cpg_position() {
+            cpg2reads.retain(|&cpg, reads| {
+                if cpg < first_cpg_position {
+                    if reads.get_coverage() >= min_depth {
+                        result.insert(cpg, reads.compute_mhl());
+                    }
+                    false
+                } else {
+                    true
+                }
+            }); // Finalize and compute metric for the CpGs before the first CpG in this read.
         }
 
         readcount += 1;
@@ -221,7 +213,7 @@ mod tests {
     use super::*;
 
     fn startup(input: &str) -> HashMap<readutil::CpGPosition, AssociatedReads> {
-        let mut reader = bamutil::get_reader(&input);
+        let mut reader = bamutil::get_reader(input);
         // let header = bamutil::get_header(&reader);
 
         let min_qual = 10;

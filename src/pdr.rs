@@ -18,7 +18,7 @@ struct PDRResult {
 impl PDRResult {
     fn new(pos: readutil::CpGPosition) -> Self {
         Self {
-            pos: pos,
+            pos,
             n_concordant: 0,
             n_discordant: 0,
         }
@@ -69,7 +69,7 @@ impl PartialEq for PDRResult {
 
 impl PartialOrd for PDRResult {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 
@@ -87,7 +87,7 @@ pub fn compute(
     min_qual: u8,
     cpg_set: &Option<String>,
 ) {
-    let reader = bamutil::get_reader(&input);
+    let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     let result = compute_helper(input, min_depth, min_cpgs, min_qual, cpg_set);
@@ -112,7 +112,6 @@ pub fn compute(
             n_concordant,
             n_discordant
         )
-        .ok()
         .expect("Error writing to output file.");
     }
 }
@@ -124,7 +123,7 @@ pub fn compute_helper(
     min_qual: u8,
     cpg_set: &Option<String>,
 ) -> BTreeMap<readutil::CpGPosition, (f32, u32, u32)> {
-    let mut reader = bamutil::get_reader(&input);
+    let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
@@ -140,9 +139,8 @@ pub fn compute_helper(
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
 
-        match target_cpgs {
-            Some(target_cpgs) => br.filter_isin(target_cpgs), // cpg_set is specified
-            None => {}                                        // cpg_set is not specified
+        if let Some(target_cpgs) = target_cpgs {
+            br.filter_isin(target_cpgs); // cpg_set is specified
         }
 
         readcount += 1;
@@ -154,35 +152,29 @@ pub fn compute_helper(
         } // Read filtering: Minimum quality should be >= min_qual.
 
         let mut cpg_positions = br.get_cpg_positions();
-        if cpg_positions.len() == 0 {
+        if cpg_positions.is_empty() {
             continue;
         } // Read filtering: Ignore reads without CpGs.
 
-        match br.get_first_cpg_position() {
-            Some(first_cpg_position) => {
-                cpg2reads.retain(|&cpg, reads| {
-                    let retain = {
-                        // if cpg < first_cpg_position {
-                        if cpg.is_before(&first_cpg_position, 150) {
-                            if reads.get_coverage() >= min_depth {
-                                result.insert(
-                                    cpg,
-                                    (
-                                        reads.compute_pdr(),
-                                        reads.get_n_concordant(),
-                                        reads.get_n_discordant(),
-                                    ),
-                                );
-                            }
-                            false
-                        } else {
-                            true
-                        }
-                    };
-                    retain
-                }); // Finalize and compute metric for the CpGs before the first CpG in this read.
-            }
-            None => {}
+        if let Some(first_cpg_position) = br.get_first_cpg_position() {
+            cpg2reads.retain(|&cpg, reads| {
+                // if cpg < first_cpg_position {
+                if cpg.is_before(&first_cpg_position, 150) {
+                    if reads.get_coverage() >= min_depth {
+                        result.insert(
+                            cpg,
+                            (
+                                reads.compute_pdr(),
+                                reads.get_n_concordant(),
+                                reads.get_n_discordant(),
+                            ),
+                        );
+                    }
+                    false
+                } else {
+                    true
+                }
+            }); // Finalize and compute metric for the CpGs before the first CpG in this read.
         }
 
         for cpg_position in cpg_positions.iter_mut() {

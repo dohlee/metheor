@@ -25,16 +25,11 @@ impl BismarkRead {
         let mut start_pos = -1;
         let mut end_pos = -1;
 
-        for abspos in r.reference_positions_full() {
-            match abspos {
-                Some(abspos) => {
-                    if start_pos == -1 {
-                        start_pos = abspos as i32;
-                    }
-                    end_pos = abspos as i32;
-                }
-                None => {}
+        for abspos in r.reference_positions_full().flatten() {
+            if start_pos == -1 {
+                start_pos = abspos as i32;
             }
+            end_pos = abspos as i32;
         }
 
         match r.aux(b"XM") {
@@ -186,10 +181,10 @@ impl BismarkRead {
 
         for cpg in &self.cpgs {
             if min_anchor_pos != -1 {
-                while (cpg.relpos - min_anchor_pos > max_distance) && (anchors.len() > 0) {
+                while (cpg.relpos - min_anchor_pos > max_distance) && !anchors.is_empty() {
                     anchors.remove(0);
 
-                    if anchors.len() > 0 {
+                    if !anchors.is_empty() {
                         min_anchor_pos = anchors[0].relpos;
                     } else {
                         min_anchor_pos = -1;
@@ -229,21 +224,12 @@ impl BismarkRead {
     }
 }
 
-#[derive(Eq, Hash, Copy)]
+#[derive(Eq, PartialEq, Hash, Copy)]
 pub struct Quartet {
     pub pos1: CpGPosition,
     pub pos2: CpGPosition,
     pub pos3: CpGPosition,
     pub pos4: CpGPosition,
-}
-
-impl PartialEq for Quartet {
-    fn eq(&self, other: &Self) -> bool {
-        (self.pos1 == other.pos1)
-            && (self.pos2 == other.pos2)
-            && (self.pos3 == other.pos3)
-            && (self.pos4 == other.pos4)
-    }
 }
 
 impl Clone for Quartet {
@@ -280,16 +266,17 @@ impl Clone for CpG {
     }
 }
 
-impl ToString for CpG {
-    fn to_string(&self) -> String {
-        format!(
+impl fmt::Display for CpG {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
             "{}, {}, {}, {}",
             self.relpos, self.abspos.tid, self.abspos.pos, self.methylated
         )
     }
 }
 
-#[derive(Eq, Hash, Copy)]
+#[derive(Eq, PartialEq, Hash, Copy)]
 pub struct CpGPosition {
     pub tid: i32,
     pub pos: i32,
@@ -301,16 +288,10 @@ impl CpGPosition {
     }
 
     pub fn is_before(&self, other: &Self, distance: i32) -> bool {
-        if self.tid > other.tid {
-            false
-        } else if self.tid < other.tid {
-            true
-        } else {
-            if self.pos + distance < other.pos {
-                true
-            } else {
-                false
-            }
+        match self.tid.cmp(&other.tid) {
+            Ordering::Greater => false,
+            Ordering::Less => true,
+            Ordering::Equal => self.pos + distance < other.pos,
         }
     }
 }
@@ -318,12 +299,6 @@ impl CpGPosition {
 impl fmt::Display for CpGPosition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}\t{}\t{}", self.tid, self.pos, self.pos + 2)
-    }
-}
-
-impl PartialEq for CpGPosition {
-    fn eq(&self, other: &Self) -> bool {
-        (self.tid == other.tid) && (self.pos == other.pos)
     }
 }
 
@@ -353,23 +328,20 @@ fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
             continue;
         }
 
-        match abspos {
-            Some(abspos) => {
-                if (r.flags() == 0) || (r.flags() == 99) || (r.flags() == 147) {
-                    // Forward
-                    let cpgpos = CpGPosition::new(r.tid(), abspos as i32);
-                    cpgs.push(CpG::new(relpos as i32, cpgpos, c));
-                } else {
-                    // Reverse
-                    let cpgpos = CpGPosition::new(r.tid(), (abspos - 1) as i32);
-                    cpgs.push(CpG::new(relpos as i32, cpgpos, c));
-                }
+        if let Some(abspos) = abspos {
+            if (r.flags() == 0) || (r.flags() == 99) || (r.flags() == 147) {
+                // Forward
+                let cpgpos = CpGPosition::new(r.tid(), abspos as i32);
+                cpgs.push(CpG::new(relpos as i32, cpgpos, c));
+            } else {
+                // Reverse
+                let cpgpos = CpGPosition::new(r.tid(), (abspos - 1) as i32);
+                cpgs.push(CpG::new(relpos as i32, cpgpos, c));
             }
-            None => {}
         }
     }
 
-    return cpgs;
+    cpgs
 }
 
 pub fn get_target_cpgs(
@@ -391,7 +363,7 @@ pub fn get_target_cpgs(
 
                 target_cpgs.insert(CpGPosition {
                     tid: bamutil::chrom2tid(chrom.as_bytes(), header) as i32,
-                    pos: pos,
+                    pos,
                 });
             }
 
@@ -410,7 +382,7 @@ mod tests {
     #[test]
     fn test_bismarkread_constructor() {
         let input = "tests/test1.bam";
-        let mut reader = bamutil::get_reader(&input);
+        let mut reader = bamutil::get_reader(input);
         for r in reader.records() {
             let r = r.unwrap();
             let _br = BismarkRead::new(&r);
@@ -420,7 +392,7 @@ mod tests {
     #[test]
     fn test_bismarkread_get_concordance_state() {
         let input = "tests/test1.bam";
-        let mut reader = bamutil::get_reader(&input);
+        let mut reader = bamutil::get_reader(input);
         for r in reader.records() {
             let r = r.unwrap();
             let br = BismarkRead::new(&r);
@@ -435,7 +407,7 @@ mod tests {
         let max_distance = 16;
 
         let input = "tests/test1.bam";
-        let mut reader = bamutil::get_reader(&input);
+        let mut reader = bamutil::get_reader(input);
         for r in reader.records() {
             let r = r.unwrap();
 
@@ -448,7 +420,7 @@ mod tests {
     #[test]
     fn test_test1_pdr() {
         let input = "tests/test1.bam";
-        let mut reader = bamutil::get_reader(&input);
+        let mut reader = bamutil::get_reader(input);
         let mut n_read = 0;
         let mut n_discordant_read = 0;
         for r in reader.records() {
@@ -474,9 +446,9 @@ mod tests {
         let pos3 = CpGPosition { tid: 0, pos: 2 };
         let pos4 = CpGPosition { tid: 1, pos: 1 };
 
-        assert_eq!(pos1 == pos2, true);
-        assert_eq!(pos1 != pos3, true);
-        assert_eq!(pos1 != pos4, true);
+        assert!(pos1 == pos2);
+        assert!(pos1 != pos3);
+        assert!(pos1 != pos4);
     }
 
     #[test]
@@ -486,13 +458,13 @@ mod tests {
         let pos3 = CpGPosition { tid: 0, pos: 2 };
         let pos4 = CpGPosition { tid: 1, pos: 1 };
 
-        assert_eq!(pos1 <= pos2, true);
-        assert_eq!(pos1 >= pos2, true);
+        assert!(pos1 <= pos2);
+        assert!(pos1 >= pos2);
 
-        assert_eq!(pos1 < pos3, true);
-        assert_eq!(pos1 > pos3, false);
+        assert!(pos1 < pos3);
+        assert!(pos1 <= pos3);
 
-        assert_eq!(pos1 < pos4, true);
-        assert_eq!(pos3 < pos4, true);
+        assert!(pos1 < pos4);
+        assert!(pos3 < pos4);
     }
 }
