@@ -155,7 +155,8 @@ pub fn determine_xm_tag_string(
     let clipped_start = max(start - 2, 0) as usize;
     let clipped_end = min(end + 2, chromsize) as usize;
 
-    let ref_seq_result = str::from_utf8(&refgenome[&(tid as usize)].as_slice()[clipped_start..clipped_end]);
+    let ref_seq_result =
+        str::from_utf8(&refgenome[&(tid as usize)].as_slice()[clipped_start..clipped_end]);
     let ref_seq = match ref_seq_result {
         Ok(ref_seq) => ref_seq.to_string().to_uppercase(),
         Err(error) => panic!("Error extracting reference sequence: {}", error),
