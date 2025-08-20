@@ -34,7 +34,27 @@ cargo test <test_name>
 
 # Build and run
 cargo run -- <subcommand> <options>
+
+# Code quality checks
+cargo fmt              # Format code
+cargo fmt -- --check   # Check formatting without applying
+cargo clippy           # Run linter
 ```
+
+## Pre-commit Hooks
+
+The project includes a pre-commit hook that automatically runs code formatting, linting, and tests before each commit. To set up the hook:
+
+```bash
+./scripts/setup-hooks.sh
+```
+
+The hook will run:
+- `cargo fmt --check` - Ensures consistent code formatting
+- `cargo clippy --all-targets --all-features -- -D warnings` - Catches common issues
+- `cargo test --all-features` - Runs all tests
+
+If any check fails, the commit will be blocked until issues are resolved.
 
 ## Architecture
 
