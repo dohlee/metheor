@@ -8,12 +8,12 @@ edition = "2018"
 [dependencies]
 rand = "0.8.4"
 itertools = "0.10.2"
-rust-htslib = { version = "*", default-features = false }
+rust-htslib = { version = "0.50.0", default-features = false }
 bio-types = "0.12.1"
 # noodles = { version = "0.6.0", features = ["bam"] }
 csv = "1.1"
-indicatif = "0.16.2"
-clap = { version = "3.0.5", features = ["derive"] }
+indicatif = "0.17"
+clap = { version = "4.0", features = ["derive"] }
 interval-tree = { git = "https://github.com/zaeleus/interval-tree.git", tag = "v0.2.0" }
 
 [dev-dependencies]

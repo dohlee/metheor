@@ -12,7 +12,9 @@ impl ProgressBar {
     pub fn new() -> Self {
         let bar = indicatif::ProgressBar::new(1);
         bar.set_style(
-            indicatif::ProgressStyle::default_bar().template("{spinner} {elapsed_precise} {msg}"),
+            indicatif::ProgressStyle::default_bar()
+                .template("{spinner} {elapsed_precise} {msg}")
+                .expect("Invalid progress bar template"),
         );
 
         Self { bar }
