@@ -1,7 +1,7 @@
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
-use std::process::Command; // Run programs
 use std::fs;
+use std::process::Command; // Run programs
 
 #[test]
 fn input_file_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
@@ -58,7 +58,8 @@ fn reference_genome_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 #[test]
-fn test_whether_xmtag_generated_correctly_for_1000_chr19_reads() -> Result<(), Box<dyn std::error::Error>> {
+fn test_whether_xmtag_generated_correctly_for_1000_chr19_reads(
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("metheor")?;
 
     cmd.arg("tag")
