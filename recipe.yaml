@@ -12,13 +12,7 @@ source:
 build:
   number: 0
   script:
-    - if: win
-      then:
-        - del Cargo.lock
-        - cargo install --no-track --verbose --root $PREFIX --path . --locked=false
-    - if: unix
-      then:
-        - cargo install --no-track --verbose --root $PREFIX --path .
+    - cargo install --no-track --verbose --root $PREFIX --path .
 
 requirements:
   build:
@@ -26,16 +20,12 @@ requirements:
     - ${{ compiler('cxx') }}
     - ${{ compiler('rust') }}
     - cmake
-    - if: unix
-      then:
-        - pkg-config
+    - pkg-config
   host:
     - zlib
     - bzip2
     - xz
-    - if: unix
-      then:
-        - openssl
+    - openssl
   run:
     - if: linux
       then:

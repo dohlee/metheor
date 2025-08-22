@@ -20,8 +20,7 @@ jobs:
         include:
           - { target: linux-64, os: ubuntu-20.04 }
           - { target: osx-64, os: macos-13 }     # Intel Mac
-          - { target: osx-arm64, os: macos-14 }  # Apple Silicon Mac  
-          - { target: win-64, os: windows-latest }
+          - { target: osx-arm64, os: macos-14 }  # Apple Silicon Mac
 
     runs-on: ${{ matrix.os }}
     steps:
