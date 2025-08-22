@@ -1,0 +1,51 @@
+context:
+  version: "0.1.8"
+
+package:
+  name: metheor
+  version: ${{ version }}
+
+source:
+  git_url: https://github.com/dohlee/metheor
+  git_tag: v${{ version }}
+
+build:
+  number: 0
+  script:
+    - cargo install --no-track --verbose --root $PREFIX --path .
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - rust
+    - cmake
+    - pkg-config
+  host:
+    - zlib
+    - bzip2
+    - xz
+    - openssl  # [not win]
+  run:
+    - libgcc-ng  # [linux]
+
+test:
+  commands:
+    - metheor --help
+    - metheor --version
+
+about:
+  home: https://github.com/dohlee/metheor
+  license: MIT
+  license_file: LICENSE
+  summary: Compute DNA methylation heterogeneity levels from Bismark-aligned bisulfite sequencing data
+  description: |
+    Metheor is an ultrafast, Rust-based bioinformatics tool for computing various 
+    intra-/inter-cellular methylation heterogeneity measures from bisulfite sequencing data.
+    It supports seven different measures: PDR, LPMD, MHL, PM, ME, FDRP, and qFDRP.
+  doc_url: https://github.com/dohlee/metheor/blob/master/README.md
+  dev_url: https://github.com/dohlee/metheor
+
+extra:
+  recipe-maintainers:
+    - dohlee
