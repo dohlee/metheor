@@ -21,15 +21,23 @@ requirements:
     - ${{ compiler('rust') }}
     - cmake
     - pkg-config
-    - m2w64-gcc-libs  # [win]
+    - if: win
+      then:
+        - m2w64-gcc-libs
   host:
     - zlib
     - bzip2
     - xz
-    - openssl  # [not win]
+    - if: unix
+      then:
+        - openssl
   run:
-    - libgcc-ng  # [linux]
-    - m2w64-gcc-libs  # [win]
+    - if: linux
+      then:
+        - libgcc-ng
+    - if: win
+      then:
+        - m2w64-gcc-libs
 
 tests:
   - script:
