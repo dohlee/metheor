@@ -21,12 +21,10 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ compiler('rust') }}
-    - rust >=1.82
     - cmake
-    - pkg-config
-    - if: win
+    - if: unix
       then:
-        - m2w64-gcc-libs
+        - pkg-config
   host:
     - zlib
     - bzip2
@@ -38,9 +36,6 @@ requirements:
     - if: linux
       then:
         - libgcc-ng
-    - if: win
-      then:
-        - m2w64-gcc-libs
 
 tests:
   - script:
