@@ -12,6 +12,8 @@ source:
 build:
   number: 0
   script:
+    - if: win
+      then: cargo update icu_normalizer_data --precise 1.5.0
     - cargo install --no-track --verbose --root $PREFIX --path .
 
 requirements:
@@ -19,6 +21,7 @@ requirements:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
     - ${{ compiler('rust') }}
+    - rust >=1.82
     - cmake
     - pkg-config
     - if: win
