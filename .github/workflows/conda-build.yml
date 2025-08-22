@@ -34,7 +34,7 @@ jobs:
         uses: prefix-dev/setup-pixi@v0.8.1
         with:
           pixi-version: v0.28.2
-          cache: true
+          cache: false  # Disable cache since we don't have pixi.lock
 
       - name: Install rattler-build
         shell: bash
