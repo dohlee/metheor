@@ -18,9 +18,10 @@ requirements:
   build:
     - ${{ compiler('c') }}
     - ${{ compiler('cxx') }}
-    - rust
+    - ${{ compiler('rust') }}
     - cmake
     - pkg-config
+    - m2w64-gcc-libs  # [win]
   host:
     - zlib
     - bzip2
@@ -28,6 +29,7 @@ requirements:
     - openssl  # [not win]
   run:
     - libgcc-ng  # [linux]
+    - m2w64-gcc-libs  # [win]
 
 tests:
   - script:
