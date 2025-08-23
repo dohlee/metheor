@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: linux-64, os: ubuntu-20.04 }
+          - { target: linux-64, os: ubuntu-latest }
           - { target: osx-64, os: macos-13 }     # Intel Mac
           - { target: osx-arm64, os: macos-14 }  # Apple Silicon Mac
 
