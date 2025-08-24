@@ -13,6 +13,12 @@ pub struct PerformanceAnalyzer {
     metrics: Vec<PerformanceMetrics>,
 }
 
+impl Default for PerformanceAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceAnalyzer {
     pub fn new() -> Self {
         Self {
@@ -25,26 +31,27 @@ impl PerformanceAnalyzer {
     }
 
     pub fn analyze_scaling(&self, measure: &str) -> ScalingAnalysis {
-        let mut measure_metrics: Vec<_> = self.metrics
+        let mut measure_metrics: Vec<_> = self
+            .metrics
             .iter()
             .filter(|m| m.measure == measure)
             .cloned()
             .collect();
-        
+
         measure_metrics.sort_by_key(|m| m.dataset_size);
-        
+
         let scaling_factor = if measure_metrics.len() >= 2 {
             let first = &measure_metrics[0];
             let last = &measure_metrics[measure_metrics.len() - 1];
-            
+
             let size_ratio = last.dataset_size as f64 / first.dataset_size as f64;
             let time_ratio = last.execution_time.as_secs_f64() / first.execution_time.as_secs_f64();
-            
+
             time_ratio / size_ratio
         } else {
             1.0
         };
-        
+
         ScalingAnalysis {
             measure: measure.to_string(),
             scaling_factor,
@@ -55,62 +62,65 @@ impl PerformanceAnalyzer {
 
     pub fn compare_measures(&self) -> Vec<MeasureComparison> {
         let mut comparisons = Vec::new();
-        let measures: Vec<String> = self.metrics
+        let measures: Vec<String> = self
+            .metrics
             .iter()
             .map(|m| m.measure.clone())
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
             .collect();
-        
+
         for measure in measures {
             let avg_time = self.average_execution_time(&measure);
             let avg_throughput = self.average_throughput(&measure);
-            
+
             comparisons.push(MeasureComparison {
                 measure,
                 average_time: avg_time,
                 average_throughput: avg_throughput,
             });
         }
-        
+
         comparisons.sort_by(|a, b| a.average_time.partial_cmp(&b.average_time).unwrap());
         comparisons
     }
 
     fn average_execution_time(&self, measure: &str) -> Duration {
-        let times: Vec<Duration> = self.metrics
+        let times: Vec<Duration> = self
+            .metrics
             .iter()
             .filter(|m| m.measure == measure)
             .map(|m| m.execution_time)
             .collect();
-        
+
         if times.is_empty() {
             return Duration::from_secs(0);
         }
-        
+
         let total: Duration = times.iter().sum();
         total / times.len() as u32
     }
 
     fn average_throughput(&self, measure: &str) -> f64 {
-        let throughputs: Vec<f64> = self.metrics
+        let throughputs: Vec<f64> = self
+            .metrics
             .iter()
             .filter(|m| m.measure == measure)
             .map(|m| m.reads_per_second)
             .collect();
-        
+
         if throughputs.is_empty() {
             return 0.0;
         }
-        
+
         throughputs.iter().sum::<f64>() / throughputs.len() as f64
     }
 
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
-        
+
         report.push_str("# Metheor Performance Analysis Report\n\n");
-        
+
         report.push_str("## Performance Summary\n\n");
         let comparisons = self.compare_measures();
         report.push_str("| Measure | Avg Time (ms) | Avg Throughput (reads/s) |\n");
@@ -123,15 +133,16 @@ impl PerformanceAnalyzer {
                 comp.average_throughput
             ));
         }
-        
+
         report.push_str("\n## Scaling Analysis\n\n");
-        let measures: Vec<String> = self.metrics
+        let measures: Vec<String> = self
+            .metrics
             .iter()
             .map(|m| m.measure.clone())
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
             .collect();
-        
+
         for measure in measures {
             let analysis = self.analyze_scaling(&measure);
             report.push_str(&format!("### {}\n", measure));
@@ -141,11 +152,15 @@ impl PerformanceAnalyzer {
             ));
             report.push_str(&format!(
                 "- Scaling Type: {}\n",
-                if analysis.is_linear { "Linear" } else { "Non-linear" }
+                if analysis.is_linear {
+                    "Linear"
+                } else {
+                    "Non-linear"
+                }
             ));
-            report.push_str("\n");
+            report.push('\n');
         }
-        
+
         report
     }
 }
@@ -183,16 +198,17 @@ impl BenchmarkProfiler {
     }
 
     pub fn stop(&self, dataset_size: usize) -> PerformanceMetrics {
-        let duration = self.start_time
+        let duration = self
+            .start_time
             .map(|start| start.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
-        
+
         let reads_per_second = if duration.as_secs_f64() > 0.0 {
             dataset_size as f64 / duration.as_secs_f64()
         } else {
             0.0
         };
-        
+
         PerformanceMetrics {
             measure: self.measure_name.clone(),
             dataset_size,
@@ -219,7 +235,7 @@ pub fn estimate_memory_usage() -> Option<f64> {
             }
         }
     }
-    
+
     None
 }
 
@@ -245,11 +261,11 @@ pub fn format_throughput(reads_per_second: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_performance_analyzer() {
         let mut analyzer = PerformanceAnalyzer::new();
-        
+
         analyzer.record_metric(PerformanceMetrics {
             measure: "PDR".to_string(),
             dataset_size: 1000,
@@ -257,7 +273,7 @@ mod tests {
             reads_per_second: 10000.0,
             memory_usage_mb: Some(50.0),
         });
-        
+
         analyzer.record_metric(PerformanceMetrics {
             measure: "PDR".to_string(),
             dataset_size: 10000,
@@ -265,17 +281,17 @@ mod tests {
             reads_per_second: 10000.0,
             memory_usage_mb: Some(100.0),
         });
-        
+
         let scaling = analyzer.analyze_scaling("PDR");
         assert!(scaling.is_linear);
     }
-    
+
     #[test]
     fn test_format_duration() {
         assert_eq!(format_duration(Duration::from_millis(500)), "500ms");
         assert_eq!(format_duration(Duration::from_millis(1500)), "1.50s");
     }
-    
+
     #[test]
     fn test_format_throughput() {
         assert_eq!(format_throughput(500.0), "500 reads/s");

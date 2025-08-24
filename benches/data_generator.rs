@@ -28,6 +28,7 @@ pub fn generate_medium_dataset() -> Result<BenchmarkData, Box<dyn std::error::Er
     }
 }
 
+#[allow(dead_code)]
 pub fn generate_large_dataset() -> Result<BenchmarkData, Box<dyn std::error::Error>> {
     if Path::new("tests/test3.bam").exists() {
         Ok(BenchmarkData::new("tests/test3.bam".to_string()))
@@ -38,6 +39,7 @@ pub fn generate_large_dataset() -> Result<BenchmarkData, Box<dyn std::error::Err
     }
 }
 
+#[allow(dead_code)]
 pub fn generate_high_depth_dataset() -> Result<BenchmarkData, Box<dyn std::error::Error>> {
     if Path::new("tests/test4.bam").exists() {
         Ok(BenchmarkData::new("tests/test4.bam".to_string()))
@@ -48,6 +50,7 @@ pub fn generate_high_depth_dataset() -> Result<BenchmarkData, Box<dyn std::error
     }
 }
 
+#[allow(dead_code)]
 pub fn generate_low_methylation_dataset() -> Result<BenchmarkData, Box<dyn std::error::Error>> {
     if Path::new("tests/test5.bam").exists() {
         Ok(BenchmarkData::new("tests/test5.bam".to_string()))
@@ -58,6 +61,7 @@ pub fn generate_low_methylation_dataset() -> Result<BenchmarkData, Box<dyn std::
     }
 }
 
+#[allow(dead_code)]
 pub fn generate_high_discordance_dataset() -> Result<BenchmarkData, Box<dyn std::error::Error>> {
     if Path::new("tests/test6.bam").exists() {
         Ok(BenchmarkData::new("tests/test6.bam".to_string()))

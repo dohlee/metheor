@@ -15,22 +15,30 @@ The benchmark suite tests the performance of seven methylation measures:
 
 ## Running Benchmarks
 
-### Run all benchmarks
+### Run quiet benchmarks (minimal output, fastest)
 ```bash
-cargo bench
+cargo bench --bench methylation_benchmarks_quiet
+```
+
+### Run clean benchmarks (some output, comprehensive)
+```bash
+cargo bench --bench methylation_benchmarks_clean
+```
+
+### Run all benchmarks (comprehensive, verbose)
+```bash
+cargo bench --bench methylation_benchmarks
 ```
 
 ### Run specific benchmark group
 ```bash
-cargo bench PDR
-cargo bench LPMD
-cargo bench MHL
-# ... etc
+cargo bench --bench methylation_benchmarks_quiet quiet_measures
+cargo bench --bench methylation_benchmarks_quiet dataset_sizes
 ```
 
 ### Generate detailed HTML reports
 ```bash
-cargo bench -- --verbose
+cargo bench --bench methylation_benchmarks_quiet -- --verbose
 ```
 
 Reports are saved to `target/criterion/` directory.
@@ -42,23 +50,24 @@ cargo bench -- --profile-time=10
 
 ## Benchmark Categories
 
-### 1. Dataset Size Benchmarks
-Tests performance with different dataset sizes:
-- **Small**: 1,000 reads
-- **Medium**: 10,000 reads
-- **Large**: 100,000 reads
+### Quiet Benchmarks (`methylation_benchmarks_quiet`) ⚡ **RECOMMENDED**
+- **Silent Measures Only**: Excludes verbose LPMD to minimize output noise
+- **Quick Results**: ~5 second measurement time per benchmark  
+- **Cross-Measure Comparison**: 6 clean measures (PDR, MHL, PM, ME, FDRP, qFDRP)
+- **Dataset Size Tests**: Small vs medium performance comparison
+- **Parameter Quick Test**: Essential parameter variations
 
-### 2. Parameter Variation Benchmarks
-Tests impact of different parameter settings:
-- `min_depth`: 5, 10, 20, 30
-- `min_cpgs`: 2, 4, 8, 16
-- `min_qual`: Various quality thresholds
+### Clean Benchmarks (`methylation_benchmarks_clean`)
+- **All 7 Measures**: Including LPMD (with verbose output)
+- **Dataset Size Tests**: Small vs medium dataset performance  
+- **Moderate Detail**: ~6 second measurement time per benchmark
+- **Comprehensive Coverage**: All measures on identical datasets
 
-### 3. Methylation Pattern Benchmarks
-Tests performance with different methylation characteristics:
-- **Low methylation**: 20% methylation rate
-- **High discordance**: 50% discordant reads
-- **High depth**: Increased sequencing depth
+### Comprehensive Benchmarks (`methylation_benchmarks`) 
+- **Parameter Variation Tests**: Impact of `min_depth`, `min_cpgs`, etc.
+- **Methylation Pattern Tests**: Different methylation characteristics  
+- **Extensive Analysis**: Longer measurement times, detailed statistics
+- **Full Coverage**: All edge cases and parameter combinations
 
 ## Data Generation
 

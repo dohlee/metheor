@@ -26,3 +26,11 @@ tempfile = "3.8"
 [[bench]]
 name = "methylation_benchmarks"
 harness = false
+
+[[bench]]
+name = "methylation_benchmarks_clean"
+harness = false
+
+[[bench]]
+name = "methylation_benchmarks_quiet"
+harness = false
