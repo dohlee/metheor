@@ -3,9 +3,16 @@ use std::str;
 use clap::{Parser, Subcommand};
 
 pub mod bamutil;
+pub mod fdrp;
 pub mod lpmd;
+pub mod me;
+pub mod mhl;
+pub mod pdr;
+pub mod pm;
 pub mod progressbar;
+pub mod qfdrp;
 pub mod readutil;
+pub mod tag;
 
 /// Summarizes the heterogeneity of DNA methylation states using BAM files.
 #[derive(Parser)]

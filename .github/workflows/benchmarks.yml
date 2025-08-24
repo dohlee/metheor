@@ -1,0 +1,187 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [ master, dev ]
+  pull_request:
+    branches: [ master, dev ]
+  schedule:
+    - cron: '0 2 * * *'  # Nightly at 2 AM UTC
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-bench-target-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind linux-tools-common linux-tools-generic linux-tools-$(uname -r)
+        
+    - name: Build release binary
+      run: cargo build --release
+      
+    - name: Run benchmarks
+      run: |
+        cargo bench --bench methylation_benchmarks -- --save-baseline current
+        
+    - name: Compare with baseline (PR only)
+      if: github.event_name == 'pull_request'
+      run: |
+        git fetch origin ${{ github.base_ref }}
+        git checkout origin/${{ github.base_ref }}
+        cargo bench --bench methylation_benchmarks -- --save-baseline base
+        git checkout -
+        cargo bench --bench methylation_benchmarks -- --baseline base
+        
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: target/criterion
+        
+    - name: Generate performance report
+      run: |
+        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Performance Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -d "target/criterion" ]; then
+          for report in target/criterion/*/report/index.html; do
+            if [ -f "$report" ]; then
+              measure=$(basename $(dirname $(dirname "$report")))
+              echo "- [$measure]($(basename $report))" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+        fi
+        
+    - name: Check for performance regression
+      if: github.event_name == 'pull_request'
+      run: |
+        # Check if any benchmark regressed by more than 10%
+        regression_found=false
+        for estimates in target/criterion/*/base/estimates.json; do
+          if [ -f "$estimates" ]; then
+            current="${estimates/base/new}"
+            if [ -f "$current" ]; then
+              base_time=$(jq '.mean.point_estimate' "$estimates")
+              current_time=$(jq '.mean.point_estimate' "$current")
+              if (( $(echo "$current_time > $base_time * 1.1" | bc -l) )); then
+                echo "Performance regression detected in $(basename $(dirname $(dirname "$estimates")))"
+                echo "Base: $base_time, Current: $current_time"
+                regression_found=true
+              fi
+            fi
+          fi
+        done
+        
+        if [ "$regression_found" = true ]; then
+          echo "::warning::Performance regression detected (>10% slower)"
+        fi
+        
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          let comment = '## Benchmark Results\n\n';
+          comment += 'Performance comparison with base branch:\n\n';
+          
+          // Read criterion results if available
+          const criterionPath = 'target/criterion';
+          if (fs.existsSync(criterionPath)) {
+            comment += '| Measure | Status | Change |\n';
+            comment += '|---------|--------|--------|\n';
+            
+            // Add summary for each measure
+            const measures = ['PDR', 'LPMD', 'MHL', 'PM', 'ME', 'FDRP', 'qFDRP'];
+            for (const measure of measures) {
+              const measurePath = path.join(criterionPath, measure);
+              if (fs.existsSync(measurePath)) {
+                comment += `| ${measure} | ✅ | See details |\n`;
+              }
+            }
+          }
+          
+          comment += '\n[View full benchmark report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  profile:
+    name: Memory and CPU Profiling
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Build release binary
+      run: cargo build --release
+      
+    - name: Profile with valgrind
+      run: |
+        # Generate test data
+        cargo test --release generate_medium_dataset --lib
+        
+        # Run memory profiling for each measure
+        for measure in pdr lpmd mhl pm me fdrp qfdrp; do
+          echo "Profiling $measure..."
+          valgrind --tool=massif --massif-out-file=massif.$measure.out \
+            timeout 60 target/release/metheor $measure \
+            -i tests/test1.bam -o /tmp/output.tsv || true
+        done
+        
+    - name: Upload profiling results
+      uses: actions/upload-artifact@v3
+      with:
+        name: profiling-results
+        path: massif.*.out
