@@ -1,4 +1,5 @@
 use clap::Parser;
+use rayon::ThreadPoolBuilder;
 
 mod bamutil;
 mod fdrp;
@@ -14,6 +15,19 @@ mod tag;
 
 fn main() {
     let args = metheor::Cli::parse();
+
+    // Configure rayon thread pool
+    let num_threads = if args.threads == 0 {
+        // Auto-detect number of threads
+        num_cpus::get()
+    } else {
+        args.threads
+    };
+
+    ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build_global()
+        .expect("Failed to build rayon thread pool");
 
     match &args.command {
         metheor::Commands::Pdr {
@@ -53,7 +67,7 @@ fn main() {
             min_overlap,
             cpg_set,
         } => {
-            fdrp::compute(
+            fdrp::compute_with_threshold(
                 input,
                 output,
                 *min_qual,
@@ -61,6 +75,7 @@ fn main() {
                 *max_depth,
                 *min_overlap,
                 cpg_set,
+                args.parallel_threshold,
             );
         }
         metheor::Commands::Qfdrp {
@@ -72,7 +87,7 @@ fn main() {
             min_overlap,
             cpg_set,
         } => {
-            qfdrp::compute(
+            qfdrp::compute_with_threshold(
                 input,
                 output,
                 *min_qual,
@@ -80,6 +95,7 @@ fn main() {
                 *max_depth,
                 *min_overlap,
                 cpg_set,
+                args.parallel_threshold,
             );
         }
         metheor::Commands::Mhl {

@@ -26,6 +26,14 @@ pub mod tag;
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,
+
+    /// Number of threads to use for parallel processing (0 = auto-detect)
+    #[clap(long, short = 't', global = true, default_value_t = 0)]
+    pub threads: usize,
+
+    /// Minimum dataset size threshold for enabling parallel processing
+    #[clap(long, global = true, default_value_t = 100)]
+    pub parallel_threshold: usize,
 }
 
 #[derive(Subcommand)]

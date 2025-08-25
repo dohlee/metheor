@@ -15,6 +15,8 @@ csv = "1.1"
 indicatif = "0.17"
 clap = { version = "4.0", features = ["derive"] }
 interval-tree = { git = "https://github.com/zaeleus/interval-tree.git", tag = "v0.2.0" }
+rayon = "1.8"
+num_cpus = "1.16"
 
 [dev-dependencies]
 assert_cmd = "2.0.8"
@@ -33,4 +35,8 @@ harness = false
 
 [[bench]]
 name = "methylation_benchmarks_quiet"
+harness = false
+
+[[bench]]
+name = "parallel_performance"
 harness = false

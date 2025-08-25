@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use rand::Rng;
+use rayon::prelude::*;
 use rust_htslib::bam::Read;
 use std::collections::BTreeMap;
 use std::fs;
@@ -134,26 +135,51 @@ impl AssociatedReads {
         dist
     }
 
-    fn compute_qfdrp(&mut self, min_overlap: i32) -> f32 {
+    fn compute_qfdrp(&self, min_overlap: i32, parallel_threshold: usize) -> f32 {
         let num_reads = self.get_num_reads();
 
-        let mut qfdrp = 0.0;
-        for comb in (0..num_reads).combinations(2) {
-            let i = comb[0];
-            let j = comb[1];
+        // Use parallel processing only for larger datasets where overhead is justified
 
-            // Read pair filtering.
-            let num_overlap_bases = self.get_num_overlap_bases(i, j);
-            let num_overlap_cpgs = self.get_num_overlap_cpgs(i, j);
-            if num_overlap_bases < min_overlap {
-                continue;
+        let qfdrp = if num_reads >= parallel_threshold {
+            // Generate all pairwise combinations and process in parallel
+            let combinations: Vec<Vec<usize>> = (0..num_reads).combinations(2).collect();
+
+            combinations
+                .par_iter()
+                .map(|comb| {
+                    let i = comb[0];
+                    let j = comb[1];
+
+                    // Read pair filtering.
+                    let num_overlap_bases = self.get_num_overlap_bases(i, j);
+                    let num_overlap_cpgs = self.get_num_overlap_cpgs(i, j);
+                    if num_overlap_bases < min_overlap {
+                        return 0.0;
+                    }
+
+                    self.hamming_distance(i, j) / num_overlap_cpgs as f32
+                })
+                .sum::<f32>()
+        } else {
+            // Use sequential processing for small datasets
+            let mut qfdrp_sum = 0.0;
+            for comb in (0..num_reads).combinations(2) {
+                let i = comb[0];
+                let j = comb[1];
+
+                // Read pair filtering.
+                let num_overlap_bases = self.get_num_overlap_bases(i, j);
+                let num_overlap_cpgs = self.get_num_overlap_cpgs(i, j);
+                if num_overlap_bases < min_overlap {
+                    continue;
+                }
+
+                qfdrp_sum += self.hamming_distance(i, j) / num_overlap_cpgs as f32;
             }
+            qfdrp_sum
+        };
 
-            qfdrp += self.hamming_distance(i, j) / num_overlap_cpgs as f32;
-        }
-
-        qfdrp /= (num_reads * (num_reads - 1)) as f32 / 2.0;
-        qfdrp
+        qfdrp / ((num_reads * (num_reads - 1)) as f32 / 2.0)
     }
 }
 
@@ -166,7 +192,39 @@ pub fn compute(
     min_overlap: i32,
     cpg_set: &Option<String>,
 ) {
-    let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, cpg_set);
+    // Use default parallel threshold for backward compatibility
+    compute_with_threshold(
+        input,
+        output,
+        min_qual,
+        min_depth,
+        max_depth,
+        min_overlap,
+        cpg_set,
+        100,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn compute_with_threshold(
+    input: &str,
+    output: &str,
+    min_qual: u8,
+    min_depth: usize,
+    max_depth: usize,
+    min_overlap: i32,
+    cpg_set: &Option<String>,
+    parallel_threshold: usize,
+) {
+    let result = compute_helper(
+        input,
+        min_qual,
+        min_depth,
+        max_depth,
+        min_overlap,
+        cpg_set,
+        parallel_threshold,
+    );
 
     let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
@@ -192,6 +250,7 @@ fn compute_helper(
     max_depth: usize,
     min_overlap: i32,
     cpg_set: &Option<String>,
+    parallel_threshold: usize,
 ) -> BTreeMap<readutil::CpGPosition, f32> {
     let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
@@ -224,7 +283,7 @@ fn compute_helper(
             cpg2reads.retain(|&cpg, reads| {
                 if cpg < first_cpg_position {
                     if reads.get_num_reads() >= min_depth {
-                        result.insert(cpg, reads.compute_qfdrp(min_overlap));
+                        result.insert(cpg, reads.compute_qfdrp(min_overlap, parallel_threshold));
                     }
                     false
                 } else {
@@ -250,7 +309,7 @@ fn compute_helper(
     // Flush remaining CpGs.
     for (cpg, reads) in cpg2reads.iter_mut() {
         if reads.get_num_reads() >= min_depth {
-            result.insert(*cpg, reads.compute_qfdrp(min_overlap));
+            result.insert(*cpg, reads.compute_qfdrp(min_overlap, parallel_threshold));
         }
     }
 
@@ -366,7 +425,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            100,
+        );
         for (i, (cpg, qfdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_approximately_equal(*qfdrp, 8.0 / 15.0);
@@ -383,7 +450,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            100,
+        );
         for (i, (cpg, qfdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_eq!(*qfdrp, 8.0 / 15.0);
@@ -401,7 +476,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            100,
+        );
         for (i, (cpg, qfdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_eq!(*qfdrp, 1.0);
@@ -418,7 +501,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6, 13, 15, 17, 19];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            100,
+        );
         for (i, (cpg, qfdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_eq!(*qfdrp, 8.0 / 15.0);
@@ -434,7 +525,15 @@ mod tests {
         let min_overlap = 4;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            100,
+        );
         assert_eq!(result.len(), 0);
     }
 }

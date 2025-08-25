@@ -136,6 +136,10 @@ pub fn compute_helper(
     let mut result: BTreeMap<readutil::CpGPosition, (f32, u32, u32)> = BTreeMap::new();
     let bar = progressbar::ProgressBar::new();
 
+    // For large datasets, we can parallelize record processing, but due to the sequential
+    // nature of CpG processing and the retain() operation that depends on read order,
+    // parallelization is complex. For now, use sequential processing with potential
+    // for future parallel chunking optimization.
     for r in reader.records().map(|r| r.unwrap()) {
         let mut br = readutil::BismarkRead::new(&r);
 
