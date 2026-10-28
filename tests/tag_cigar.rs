@@ -47,6 +47,68 @@ fn reference_skips_advance_context_without_adding_xm_bases() {
 }
 
 #[test]
+fn deletion_context_keeps_reference_flanks() {
+    let cases = [
+        ("AGCTAGC", 0, 1, "1M1N1M1D1M", "ACA", ".X."),
+        (
+            "GTCCGAGTGTCCGCTCTTTTCA",
+            0,
+            3,
+            "1M1D3M4I4M4I5M3D1M1S",
+            "TGAGAAAATGTTAAAATGCTCTA",
+            "z..........u....z.H.H..",
+        ),
+        (
+            "CATAAGGTGGCGCCG",
+            16,
+            3,
+            "1M2D1M1D3M3I3M",
+            "TATGGAAACAC",
+            ".h.HH....z.",
+        ),
+        (
+            "CTAAGAAATATAGGCCCCG",
+            0,
+            3,
+            "2S4M2I1M2D3M2I3M1D1M1S",
+            "AAAAGAAAAATAAAGGTTA",
+            "................hx.",
+        ),
+        (
+            "CCCCGGGCAGGCAGCTAAGCAACCTTGTACGAGC",
+            0,
+            3,
+            "2S3M2D2M2I3M4N1M4I4M4D5M1D1M1S",
+            "AACCGCAAAGGTAAAAAAGTATGTACAA",
+            "..XZ.U.....u.......h.....X..",
+        ),
+    ];
+    for (genome, flags, position, cigar, sequence, expected) in cases {
+        let w = Workspace::new();
+        let reference = w.write("reference.fa", &format!(">chr1\n{genome}\n"));
+        rust_htslib::faidx::build(&reference).unwrap();
+        let sam = w.write(
+            "input.sam",
+            &format!("@SQ\tSN:chr1\tLN:{}\nr\t{flags}\tchr1\t{position}\t60\t{cigar}\t*\t0\t0\t{sequence}\t*\n", genome.len()),
+        );
+        for input in [sam.clone(), bam_copy(&w, &sam)] {
+            w.command("tag", &input, &["-g", reference.to_str().unwrap()])
+                .assert()
+                .success();
+            let mut reader = bam::Reader::from_path(w.path("output.tsv")).unwrap();
+            let record = reader.records().next().unwrap().unwrap();
+            assert_eq!(record.seq().as_bytes(), sequence.as_bytes());
+            assert_eq!(expected.len(), record.seq_len());
+            assert_eq!(
+                record.aux(b"XM").unwrap(),
+                bam::record::Aux::String(expected),
+                "{cigar}, flag {flags}"
+            );
+        }
+    }
+}
+
+#[test]
 fn reported_complex_cigars_match_bismark_calls_and_preserve_alignment_data() {
     use bam::record::{Aux, Cigar, CigarString};
 
