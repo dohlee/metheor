@@ -145,7 +145,7 @@ mod tests {
 
         assert_eq!(quartet2stat.len(), 1);
 
-        for (_, reads) in quartet2stat.iter() {
+        for reads in quartet2stat.values() {
             assert_eq!(reads.get_read_depth(), 16);
             assert_eq!(reads.compute_me(), 1.0);
         }
@@ -161,7 +161,7 @@ mod tests {
 
         assert_eq!(quartet2stat.len(), 1);
 
-        for (_, reads) in quartet2stat.iter() {
+        for reads in quartet2stat.values() {
             assert_eq!(reads.compute_me(), 0.25);
         }
     }
@@ -175,7 +175,7 @@ mod tests {
 
         assert_eq!(quartet2stat.len(), 1);
 
-        for (_, reads) in quartet2stat.iter() {
+        for reads in quartet2stat.values() {
             assert_eq!(reads.compute_me(), 0.25);
         }
     }
@@ -189,7 +189,7 @@ mod tests {
 
         assert_eq!(quartet2stat.len(), 2);
 
-        for (_, reads) in quartet2stat.iter() {
+        for reads in quartet2stat.values() {
             assert_eq!(reads.compute_me(), 1.0);
         }
     }
