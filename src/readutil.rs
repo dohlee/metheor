@@ -10,6 +10,9 @@ use std::fs;
 
 use crate::bamutil;
 
+#[path = "modtags.rs"]
+mod modtags;
+
 pub type QuartetPattern = usize;
 
 pub struct BismarkRead {
@@ -51,6 +54,11 @@ impl BismarkRead {
                     panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
                 }
             }
+            Err(_) if r.aux(b"MM").is_ok() || r.aux(b"Mm").is_ok() => Self {
+                start_pos,
+                end_pos,
+                cpgs: modtags::get_cpgs(r),
+            },
             Err(_) => {
                 panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
             }

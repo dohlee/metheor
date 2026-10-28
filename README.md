@@ -22,6 +22,27 @@ conda install -c dohlee metheor
 
 ## Usage
 
+### Native 5mC calls (MM/ML)
+
+The seven measures accept native methylation calls when an alignment has MM/ML
+tags and no Bismark XM tag. Existing XM tags take precedence. No bisulfite
+conversion or additional tagging step is needed:
+
+```
+metheor pm --input native.sorted.bam --output native.pm.tsv
+```
+
+Metheor selects 5mC (`m`, or ChEBI `27551`) and calls it methylated when ML is
+at least 128 (probability at least 0.5). Other modification types are not 5mC.
+Explicit calls without ML remain unknown. The MM `?` mode leaves skipped bases
+unknown; the default and `.` modes treat them as unmodified. Agreeing duplex
+calls count once, and conflicting calls at the same CpG are excluded.
+
+CpG context comes from adjacent reference-aligned bases of the read sequence;
+unaligned bases and contexts spanning a deletion are excluded. Reverse
+alignments, indels, multi-modification groups, and legacy Mm/Ml names are
+supported. Invalid coordinates, ML lengths, and stale MN lengths are rejected.
+
 ### Supported methylation heterogeneity measures
 
 `Metheor` supports seven methylation heterogeneity measures in total.
