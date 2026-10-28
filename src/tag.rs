@@ -182,10 +182,12 @@ pub fn determine_xm_tag_string(
 
     let mut used_read_len: usize = 0;
     let mut used_ref_len: usize = 2;
+    let mut leading_soft_clip = 0;
+    let mut trailing_soft_clip = 0;
 
     for cigar in r.cigar().iter() {
         match cigar {
-            Cigar::Match(length) => {
+            Cigar::Match(length) | Cigar::Equal(length) | Cigar::Diff(length) => {
                 tmp_read_seq.append(
                     &mut read_seq
                         .chars()
@@ -227,6 +229,14 @@ pub fn determine_xm_tag_string(
                 );
 
                 used_ref_len += *length as usize;
+            }
+            Cigar::SoftClip(length) => {
+                if used_read_len == 0 {
+                    leading_soft_clip = *length as usize;
+                } else {
+                    trailing_soft_clip = *length as usize;
+                }
+                used_read_len += *length as usize;
             }
             _ => {}
         }
@@ -377,10 +387,16 @@ pub fn determine_xm_tag_string(
         }
     }
 
-    match flag_reverse_complement {
+    let xm: String = match flag_reverse_complement {
         true => xm_tag.iter().rev().collect::<String>(),
         false => xm_tag.iter().collect::<String>(),
-    }
+    };
+    format!(
+        "{}{}{}",
+        ".".repeat(leading_soft_clip),
+        xm,
+        ".".repeat(trailing_soft_clip)
+    )
 }
 
 pub fn run(input: &str, output: &str, genome: &str) {
@@ -401,12 +417,6 @@ pub fn run(input: &str, output: &str, genome: &str) {
             dir.to_str().unwrap()
         )
     }
-    // Prepare output writer.
-    let header_tmpl = get_header_template_from_bam(input);
-    let mut writer = match bam::Writer::from_path(output, &header_tmpl, bam::Format::Sam) {
-        Ok(writer) => writer,
-        Err(error) => panic!("Error opening alignment file to write: {}", error),
-    };
     // Prepare reference genome.
     let refgenome_reader = match faidx::Reader::from_path(genome) {
         Ok(refgenome_reader) => refgenome_reader,
@@ -424,6 +434,18 @@ pub fn run(input: &str, output: &str, genome: &str) {
         refgenome.insert(*tid, ref_array);
     }
     println!("Done!");
+
+    // Prepare output writer.
+    let header_tmpl = get_header_template_from_bam(input);
+    let format = if output.ends_with(".bam") {
+        bam::Format::Bam
+    } else {
+        bam::Format::Sam
+    };
+    let mut writer = match bam::Writer::from_path(output, &header_tmpl, format) {
+        Ok(writer) => writer,
+        Err(error) => panic!("Error opening alignment file to write: {}", error),
+    };
 
     // Main loop
     // Iterate aligned reads and determine xm tag string.
