@@ -12,7 +12,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use std::str;
 
-use crate::bamutil;
+use crate::{alignmentwriter::AlignmentWriter, bamutil};
 
 fn need_reverse_complement(read: &Record) -> bool {
     !((!read.is_reverse() && read.is_first_in_template())
@@ -470,20 +470,9 @@ pub fn run(input: &str, output: &str, genome: &str) {
 
     // Prepare output writer.
     let header_tmpl = get_header_template_from_bam(input);
-    let format = if to_stdout || output.ends_with(".bam") {
-        bam::Format::Bam
-    } else {
-        bam::Format::Sam
-    };
-    let writer = if to_stdout {
-        bam::Writer::from_stdout(&header_tmpl, format)
-    } else {
-        bam::Writer::from_path(output, &header_tmpl, format)
-    };
-    let mut writer = match writer {
-        Ok(writer) => writer,
-        Err(error) => panic!("Error opening alignment file to write: {}", error),
-    };
+    let mut writer =
+        AlignmentWriter::new(output, &header_tmpl, to_stdout || output.ends_with(".bam"))
+            .expect("Error opening alignment file to write");
 
     // Main loop
     // Iterate aligned reads and determine xm tag string.
@@ -500,6 +489,7 @@ pub fn run(input: &str, output: &str, genome: &str) {
         // Write record to output.
         writer.write(&r).expect("Error writing to output file.");
     }
+    writer.finish().expect("Error finalizing alignment output");
 }
 
 #[cfg(test)]

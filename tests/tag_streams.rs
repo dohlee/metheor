@@ -144,3 +144,41 @@ fn tag_rejects_source_aliases_and_reference_overwrites() {
         assert_eq!(std::fs::read(&reference).unwrap(), reference_before);
     }
 }
+
+#[test]
+#[cfg(unix)]
+fn tag_stdout_reports_a_failure_when_the_downstream_is_already_closed() {
+    use std::{
+        os::{fd::OwnedFd, unix::net::UnixStream},
+        process::{Command, Stdio},
+    };
+    let w = Workspace::new();
+    let reference = w.write("reference.fa", ">chr1\nCCGCGTCC\n");
+    rust_htslib::faidx::build(&reference).unwrap();
+    let input = w.write(
+        "input.sam",
+        "@SQ\tSN:chr1\tLN:8\nread\t0\tchr1\t1\t60\t8M\t*\t0\t0\tCCGCGTCC\t*\n",
+    );
+    let (downstream, upstream) = UnixStream::pair().unwrap();
+    drop(downstream);
+    let descriptor: OwnedFd = upstream.into();
+    let output = Command::new(env!("CARGO_BIN_EXE_metheor"))
+        .args([
+            "tag",
+            "-i",
+            input.to_str().unwrap(),
+            "-g",
+            reference.to_str().unwrap(),
+            "-o",
+            "-",
+        ])
+        .stdout(Stdio::from(descriptor))
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert!(
+        !output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
