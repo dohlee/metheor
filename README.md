@@ -159,6 +159,10 @@ Produces a tab-separated table with the following five columns, where each row c
 5. `cpg4`: 0-based position of the cytosine (C) in the fourth CpG
 6. `pm`: Value of PM
 
+Quartets are consecutive CpG observations within a read by default. To require
+neighbors in a complete reference CpG catalogue, add `--reference-cpgs genome.cpg.bed`.
+See [reference-adjacent quartets](docs/reference-quartets.md).
+
 *NOTE*: The order of CpG quartets in the output file is not sorted.
 
 **Methylation entropy (ME)**
@@ -189,6 +193,9 @@ Produces a tab-separated table with the following five columns, where each row c
 4. `cpg3`: 0-based position of the cytosine (C) in the third CpG
 5. `cpg4`: 0-based position of the cytosine (C) in the fourth CpG
 6. `me`: Value of ME
+
+The same optional `--reference-cpgs genome.cpg.bed` adjacency rule applies to ME.
+See [reference-adjacent quartets](docs/reference-quartets.md).
 
 *NOTE*: The order of CpG quartets in the output file is not sorted.
 

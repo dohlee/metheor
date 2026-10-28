@@ -9,6 +9,7 @@ mod pdr;
 mod pm;
 mod progressbar;
 mod qfdrp;
+mod quartetcatalog;
 mod readutil;
 mod tag;
 
@@ -32,8 +33,16 @@ fn main() {
             min_depth,
             min_qual,
             cpg_set,
+            reference_cpgs,
         } => {
-            pm::compute(input, output, *min_depth, *min_qual, cpg_set);
+            pm::compute(
+                input,
+                output,
+                *min_depth,
+                *min_qual,
+                cpg_set,
+                reference_cpgs,
+            );
         }
         metheor::Commands::Me {
             input,
@@ -41,8 +50,16 @@ fn main() {
             min_depth,
             min_qual,
             cpg_set,
+            reference_cpgs,
         } => {
-            me::compute(input, output, *min_depth, *min_qual, cpg_set);
+            me::compute(
+                input,
+                output,
+                *min_depth,
+                *min_qual,
+                cpg_set,
+                reference_cpgs,
+            );
         }
         metheor::Commands::Fdrp {
             input,
