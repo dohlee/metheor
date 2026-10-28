@@ -1,7 +1,8 @@
+mod common;
+
 use assert_cmd::Command;
+use common::Workspace;
 use predicates::prelude::*;
-use std::fs;
-use std::path::Path;
 
 #[cfg(test)]
 mod cli_error_tests {
@@ -62,8 +63,11 @@ mod cli_error_tests {
 
     // Test argument validation for each subcommand
     fn test_subcommand_missing_input(subcommand: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
-        cmd.arg(subcommand).arg("--output").arg("test_output.tsv");
+        cmd.arg(subcommand)
+            .arg("--output")
+            .arg(w.path("output.tsv"));
 
         cmd.assert()
             .failure()
@@ -135,12 +139,13 @@ mod cli_error_tests {
     // Test parameter validation
     #[test]
     fn test_invalid_min_depth_negative() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
             .arg("--input")
             .arg("tests/test1.bam")
             .arg("--output")
-            .arg("test_output.tsv")
+            .arg(w.path("output.tsv"))
             .arg("--min-depth")
             .arg("-5");
 
@@ -153,12 +158,13 @@ mod cli_error_tests {
 
     #[test]
     fn test_invalid_quality_threshold_out_of_range() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
             .arg("--input")
             .arg("tests/test1.bam")
             .arg("--output")
-            .arg("test_output.tsv")
+            .arg(w.path("output.tsv"))
             .arg("--min-qual")
             .arg("300"); // Quality scores are typically 0-60
 
@@ -171,25 +177,21 @@ mod cli_error_tests {
 
     #[test]
     fn test_lpmd_invalid_distance_parameters() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("lpmd")
             .arg("--input")
             .arg("tests/test1.bam")
             .arg("--output")
-            .arg("test_output.tsv")
+            .arg(w.path("output.tsv"))
             .arg("--min-distance")
             .arg("100")
             .arg("--max-distance")
             .arg("50"); // min > max
 
-        // This might not fail at CLI level but at runtime, so just test that it runs
-        // The validation logic may be in the compute function rather than CLI
-        cmd.assert().success(); // Accept success since validation may be internal
-
-        // Clean up any output file
-        if Path::new("test_output.tsv").exists() {
-            fs::remove_file("test_output.tsv")?;
-        }
+        cmd.assert()
+            .failure()
+            .stderr(predicate::str::contains("min-distance <= max-distance"));
 
         Ok(())
     }
@@ -212,12 +214,13 @@ mod cli_error_tests {
 
     #[test]
     fn test_invalid_bam_file_format() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
             .arg("--input")
             .arg("Cargo.toml") // Not a BAM file
             .arg("--output")
-            .arg("test_output.tsv");
+            .arg(w.path("output.tsv"));
 
         cmd.assert()
             .failure()
@@ -228,12 +231,13 @@ mod cli_error_tests {
 
     #[test]
     fn test_nonexistent_cpg_set_file() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
             .arg("--input")
             .arg("tests/test1.bam")
             .arg("--output")
-            .arg("test_output.tsv")
+            .arg(w.path("output.tsv"))
             .arg("--cpg-set")
             .arg("nonexistent.bed");
 
@@ -245,13 +249,14 @@ mod cli_error_tests {
     // Test tag-specific error conditions
     #[test]
     fn test_tag_missing_reference() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("tag")
             .arg("--input")
             .arg("tests/test1.bam")
             .arg("--output")
-            .arg("test_output.sam");
-        // Missing required --reference argument
+            .arg(w.path("output.sam"));
+        // Missing required --genome argument
 
         cmd.assert()
             .failure()
@@ -262,13 +267,14 @@ mod cli_error_tests {
 
     #[test]
     fn test_tag_nonexistent_reference() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("tag")
             .arg("--input")
             .arg("tests/test1.bam")
             .arg("--output")
-            .arg("test_output.sam")
-            .arg("--reference")
+            .arg(w.path("output.sam"))
+            .arg("--genome")
             .arg("nonexistent.fa");
 
         cmd.assert().failure();
@@ -321,23 +327,18 @@ mod cli_error_tests {
     // Test edge cases with empty or minimal files
     #[test]
     fn test_zero_byte_input() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         // Create a temporary empty file
-        let empty_file = "test_empty.bam";
-        fs::write(empty_file, "")?;
+        let empty_file = w.write("empty.bam", "");
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
             .arg("--input")
             .arg(empty_file)
             .arg("--output")
-            .arg("test_output.tsv");
+            .arg(w.path("output.tsv"));
 
         let _result = cmd.assert().failure();
-
-        // Clean up
-        if Path::new(empty_file).exists() {
-            fs::remove_file(empty_file)?;
-        }
 
         Ok(())
     }
@@ -345,43 +346,35 @@ mod cli_error_tests {
     // Test parameter boundary conditions
     #[test]
     fn test_extreme_parameter_values() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
             .arg("--input")
             .arg("tests/test1.bam")
             .arg("--output")
-            .arg("test_output.tsv")
+            .arg(w.path("output.tsv"))
             .arg("--min-depth")
             .arg("999999");
 
         // Should run but likely produce no results due to high threshold
         cmd.assert().success();
 
-        // Clean up output file if created
-        if Path::new("test_output.tsv").exists() {
-            fs::remove_file("test_output.tsv")?;
-        }
-
         Ok(())
     }
 
     #[test]
     fn test_zero_min_qual_threshold() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
             .arg("--input")
             .arg("tests/test1.bam")
             .arg("--output")
-            .arg("test_output.tsv")
+            .arg(w.path("output.tsv"))
             .arg("--min-qual")
             .arg("0");
 
         cmd.assert().success();
-
-        // Clean up output file if created
-        if Path::new("test_output.tsv").exists() {
-            fs::remove_file("test_output.tsv")?;
-        }
 
         Ok(())
     }

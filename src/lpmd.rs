@@ -131,6 +131,10 @@ pub fn compute(
     cpg_set: &Option<String>,
     pairs: &Option<String>,
 ) {
+    assert!(
+        0 <= min_distance && min_distance <= max_distance,
+        "Invalid CpG distance range: require 0 <= min-distance <= max-distance."
+    );
     let result = compute_helper(input, min_distance, max_distance, min_qual, cpg_set);
     let lpmd = result.compute_lpmd();
 
