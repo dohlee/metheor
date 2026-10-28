@@ -32,8 +32,16 @@ fn main() {
             min_depth,
             min_qual,
             cpg_set,
+            include_counts,
         } => {
-            pm::compute(input, output, *min_depth, *min_qual, cpg_set);
+            pm::compute(
+                input,
+                output,
+                *min_depth,
+                *min_qual,
+                cpg_set,
+                *include_counts,
+            );
         }
         metheor::Commands::Me {
             input,

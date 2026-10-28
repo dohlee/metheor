@@ -72,6 +72,10 @@ pub enum Commands {
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
         #[clap(long, short = 'c', required = false, display_order = 5)]
         cpg_set: Option<String>,
+
+        /// Append counts for the 16 epialleles, ordered from 0000 to 1111.
+        #[clap(long)]
+        include_counts: bool,
     },
     /// Compute methylation entropy.
     #[clap(arg_required_else_help = true)]

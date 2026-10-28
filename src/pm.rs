@@ -60,7 +60,14 @@ impl PMResult {
     }
 }
 
-pub fn compute(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set: &Option<String>) {
+pub fn compute(
+    input: &str,
+    output: &str,
+    min_depth: u32,
+    min_qual: u8,
+    cpg_set: &Option<String>,
+    include_counts: bool,
+) {
     let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
@@ -77,8 +84,14 @@ pub fn compute(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set:
         if stat.get_read_depth() < min_depth {
             continue;
         }
-        writeln!(out, "{}", stat.to_bedgraph_field(&header))
-            .expect("Error writing to output file.");
+        let mut row = stat.to_bedgraph_field(&header);
+        if include_counts {
+            for count in stat.quartet_pattern_counts {
+                row.push('\t');
+                row.push_str(&count.to_string());
+            }
+        }
+        writeln!(out, "{}", row).expect("Error writing to output file.");
     }
 }
 
