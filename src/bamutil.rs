@@ -29,6 +29,13 @@ pub fn methylation_records(
                 unmapped += 1;
                 continue;
             }
+            if ![b"XM", b"MM", b"Mm"]
+                .iter()
+                .any(|tag| record.aux(*tag).is_ok())
+            {
+                untagged += 1;
+                continue;
+            }
             if require_sorted {
                 let position = (record.tid(), record.pos());
                 assert!(
@@ -36,13 +43,6 @@ pub fn methylation_records(
                     "Input alignments must be coordinate-sorted; run samtools sort before metheor"
                 );
                 previous = Some(position);
-            }
-            if ![b"XM", b"MM", b"Mm"]
-                .iter()
-                .any(|tag| record.aux(*tag).is_ok())
-            {
-                untagged += 1;
-                continue;
             }
             return Some(record);
         }
