@@ -269,3 +269,24 @@ fn implicit_and_explicit_5mc_aliases_cannot_override_each_other() {
         );
     }
 }
+
+#[test]
+fn long_native_read_lpmd_counts_all_pairs_in_a_wide_distance_window() {
+    let sequence = format!("CG{}", "A".repeat(98)).repeat(100);
+    let deltas = vec!["0"; 100].join(",");
+    let probabilities = (0..100)
+        .map(|i| if i % 2 == 0 { "255" } else { "0" })
+        .collect::<Vec<_>>()
+        .join(",");
+    let tags = format!("MM:Z:C+m?,{deltas};\tML:B:C,{probabilities}");
+    let read = native_read(0, "10000M", &sequence, &tags);
+    let (concordant, discordant, pairs) =
+        read.compute_pairwise_cpg_concordance_discordance(2, 10000);
+    assert_eq!((concordant, discordant, pairs.len()), (2450, 2500, 4950));
+    let w = Workspace::new();
+    let input = w.write("input.sam", &format!("@SQ\tSN:chr1\tLN:20000\nread\t0\tchr1\t101\t60\t10000M\t*\t0\t0\t{sequence}\t*\t{tags}\n"));
+    w.command("lpmd", &input, &["-m", "2", "-M", "10000"])
+        .assert()
+        .success();
+    assert_close(w.rows()[1][1].parse().unwrap(), 50.0 / 99.0);
+}
