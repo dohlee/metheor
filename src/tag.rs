@@ -248,10 +248,7 @@ pub fn determine_xm_tag_string(
     tmp_ref_seq.push(ref_seq.chars().nth(ref_seq.len() - 2).unwrap());
     tmp_ref_seq.push(ref_seq.chars().nth(ref_seq.len() - 1).unwrap());
 
-    let target_read_seq;
-    let target_ref_seq;
-
-    if flag_reverse_complement {
+    let (target_read_seq, target_ref_seq) = if flag_reverse_complement {
         let read = tmp_read_seq
             .iter()
             .take(tmp_read_seq.len() - 2)
@@ -261,12 +258,16 @@ pub fn determine_xm_tag_string(
             .take(tmp_ref_seq.len() - 2)
             .collect::<String>();
 
-        target_read_seq = reverse_complement(&read, rcmapping);
-        target_ref_seq = reverse_complement(&reference, rcmapping);
+        (
+            reverse_complement(&read, rcmapping),
+            reverse_complement(&reference, rcmapping),
+        )
     } else {
-        target_read_seq = tmp_read_seq.iter().skip(2).collect::<String>();
-        target_ref_seq = tmp_ref_seq.iter().skip(2).collect::<String>();
-    }
+        (
+            tmp_read_seq.iter().skip(2).collect::<String>(),
+            tmp_ref_seq.iter().skip(2).collect::<String>(),
+        )
+    };
 
     let mut xm_tag: Vec<char> = Vec::new();
     for idx in 0..target_read_seq.len() - 2 {
@@ -426,7 +427,7 @@ pub fn run(input: &str, output: &str, genome: &str) {
     };
     println!("Parsing reference genome...");
     let mut refgenome: HashMap<usize, Vec<u8>> = HashMap::new();
-    for (tid, _size) in tid2size.iter() {
+    for tid in tid2size.keys() {
         let ref_array = refgenome_reader
             .fetch_seq(bamutil::tid2chrom(*tid as i32, &header), 0, tid2size[tid])
             .expect("Error fetching reference genome sequence.");
