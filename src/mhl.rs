@@ -1,3 +1,4 @@
+#[cfg(test)]
 use rust_htslib::bam::Read;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
@@ -152,7 +153,7 @@ pub fn compute_helper(
 
     let bar = progressbar::ProgressBar::new();
 
-    for r in reader.records().map(|r| r.unwrap()) {
+    for r in bamutil::methylation_records(&mut reader, true) {
         let mut br = readutil::BismarkRead::new(&r);
 
         if let Some(target_cpgs) = target_cpgs {

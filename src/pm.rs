@@ -1,4 +1,4 @@
-use rust_htslib::{bam, bam::Read};
+use rust_htslib::bam;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -99,7 +99,7 @@ pub fn compute_helper(
 
     let bar = progressbar::ProgressBar::new();
 
-    for r in reader.records().map(|r| r.unwrap()) {
+    for r in bamutil::methylation_records(&mut reader, false) {
         let mut br = readutil::BismarkRead::new(&r);
 
         if let Some(target_cpgs) = target_cpgs {

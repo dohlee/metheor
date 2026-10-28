@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use rand::Rng;
-use rust_htslib::bam::Read;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
@@ -194,7 +193,7 @@ fn compute_helper(
     let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
     let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
 
-    for r in reader.records().map(|r| r.unwrap()) {
+    for r in bamutil::methylation_records(&mut reader, true) {
         let mut br = readutil::BismarkRead::new(&r);
 
         if let Some(target_cpgs) = target_cpgs {

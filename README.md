@@ -20,6 +20,10 @@ Install with `conda`.
 conda install -c dohlee metheor
 ```
 
+Sort input alignments by reference coordinate before analysis (`samtools sort`).
+PDR, MHL, FDRP and qFDRP validate this order. See [input requirements](docs/input-format.md)
+for filtering, depth thresholds and output coordinates.
+
 ## Usage
 
 ### Supported methylation heterogeneity measures

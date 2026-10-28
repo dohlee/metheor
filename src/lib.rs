@@ -34,11 +34,11 @@ pub enum Commands {
         #[clap(long, short = 'o', required = true, display_order = 2)]
         output: String,
 
-        /// Minimum depth of CpG stretches to consider.
+        /// Minimum number of eligible reads covering a CpG.
         #[clap(long, short = 'd', default_value_t = 10, display_order = 3)]
         min_depth: u32,
 
-        /// Minimum number of consecutive CpGs in a CpG stretch to consider.
+        /// Minimum number of observed CpGs per read.
         #[clap(long, short = 'p', default_value_t = 4, display_order = 4)]
         min_cpgs: usize,
 
