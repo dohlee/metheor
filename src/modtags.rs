@@ -78,6 +78,7 @@ pub(super) fn get_cpgs(record: &Record) -> Vec<CpG> {
             "ML length must match MM calls"
         );
     }
+    let mut explicit = HashMap::new();
     for modification in modifications {
         let (query_pos, modification) =
             modification.expect("Invalid MM/ML modification coordinates");
@@ -86,11 +87,17 @@ pub(super) fn get_cpgs(record: &Record) -> Vec<CpG> {
         }
         let query_pos = query_pos as usize;
         let negative = record.is_reverse() ^ (modification.strand != 0);
-        states.insert(
-            (query_pos, negative),
-            (modification.qual >= 0).then_some(modification.qual >= 128),
-        );
+        let value = (modification.qual >= 0).then_some(modification.qual >= 128);
+        explicit
+            .entry((query_pos, negative))
+            .and_modify(|previous| {
+                if *previous != value {
+                    *previous = None;
+                }
+            })
+            .or_insert(value);
     }
+    states.extend(explicit);
     let mut cpgs = Vec::new();
     for ((query_pos, negative), state) in states {
         if let (Some(position), Some(methylated)) = (cpg_position(query_pos, negative), state) {

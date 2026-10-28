@@ -43,6 +43,10 @@ unaligned bases and contexts spanning a deletion are excluded. Reverse
 alignments, indels, multi-modification groups, and legacy Mm/Ml names are
 supported. Invalid coordinates, ML lengths, and stale MN lengths are rejected.
 
+FDRP and qFDRP retain long reads and compare their shared CpGs without a fixed
+read-length limit. Per-CpG reservoir sampling still uses `--max-depth`; sampled
+loci share read profiles instead of copying an entire read at every CpG.
+
 ### Supported methylation heterogeneity measures
 
 `Metheor` supports seven methylation heterogeneity measures in total.

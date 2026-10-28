@@ -5,6 +5,7 @@ mod fdrp;
 mod lpmd;
 mod me;
 mod mhl;
+mod pairwise;
 mod pdr;
 mod pm;
 mod progressbar;

@@ -210,3 +210,45 @@ fn absent_probabilities_stay_unknown_and_existing_xm_takes_precedence() {
     let existing = native_read(0, "8M", "CGCGCGCG", "XM:Z:Z.Z.Z.Z.\tMM:Z:invalid");
     assert_eq!(existing.get_cpg_quartets_and_patterns().1, [15]);
 }
+
+#[test]
+fn long_native_reads_contribute_to_fdrp_and_qfdrp() {
+    let sequence = format!("CG{}CG", "A".repeat(996));
+    for metric in ["fdrp", "qfdrp"] {
+        let w = Workspace::new();
+        let input = w.sam(&format!("methylated\t0\tchr1\t1\t60\t1000M\t*\t0\t0\t{sequence}\t*\tMM:Z:C+m?,0,0;\tML:B:C,255,255\nunmethylated\t0\tchr1\t1\t60\t1000M\t*\t0\t0\t{sequence}\t*\tMM:Z:C+m?,0,0;\tML:B:C,0,0\n"));
+        w.command(metric, &input, &["-d", "2", "-l", "900"])
+            .assert()
+            .success();
+        let rows = w.rows();
+        assert_eq!(rows.len(), 2, "{metric}");
+        assert_eq!(rows[0][1], "0");
+        assert_eq!(rows[1][1], "998");
+        for row in rows {
+            assert_close(row[3].parse().unwrap(), 1.0);
+        }
+    }
+}
+
+#[test]
+fn pairwise_measures_include_reverse_strand_cpgs_at_the_alignment_edge() {
+    for (metric, expected) in [("fdrp", 1.0), ("qfdrp", 0.25)] {
+        let w = Workspace::new();
+        let input = w.sam("a\t16\tchr1\t101\t60\t8M\t*\t0\t0\tGAGAGAGA\t*\tXM:Z:Z.Z.Z.Z.\nb\t16\tchr1\t101\t60\t8M\t*\t0\t0\tAAGAGAGA\t*\tXM:Z:z.Z.Z.Z.\n");
+        w.command(metric, &input, &["-d", "2", "-l", "1"])
+            .assert()
+            .success();
+        let rows = w.rows();
+        assert_eq!(rows.len(), 4);
+        assert_eq!(rows[0][1], "99");
+        for row in rows {
+            assert_close(row[3].parse().unwrap(), expected);
+        }
+    }
+}
+
+#[test]
+fn conflicting_duplicate_5mc_codes_remain_unknown() {
+    let read = native_read(0, "8M", "CGCGCGCG", "MM:Z:C+m?,0;C+27551?,0;\tML:B:C,255,0");
+    assert_eq!(read.get_num_cpgs(), 0);
+}
