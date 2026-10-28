@@ -3,10 +3,11 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
 
-use crate::{bamutil, progressbar, readutil};
+use crate::{bamutil, overlap, progressbar, readutil};
 
 use crate::pairwise::AssociatedReads;
 
+#[allow(clippy::too_many_arguments)]
 pub fn compute(
     input: &str,
     output: &str,
@@ -15,8 +16,17 @@ pub fn compute(
     max_depth: usize,
     min_overlap: i32,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) {
-    let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, cpg_set);
+    let result = compute_helper(
+        input,
+        min_qual,
+        min_depth,
+        max_depth,
+        min_overlap,
+        cpg_set,
+        ignore_overlaps,
+    );
 
     let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
@@ -42,6 +52,7 @@ fn compute_helper(
     max_depth: usize,
     min_overlap: i32,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) -> BTreeMap<readutil::CpGPosition, f32> {
     let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
@@ -50,6 +61,7 @@ fn compute_helper(
     let mut valid_readcount = 0;
 
     let bar = progressbar::ProgressBar::new();
+    let mut overlaps = overlap::OverlapTracker::new(ignore_overlaps);
 
     let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
 
@@ -83,7 +95,13 @@ fn compute_helper(
             }
         });
 
-        for cpg_position in br.get_cpg_positions().iter() {
+        let cpg_positions = br.get_cpg_positions();
+        let duplicates = overlaps.observe(&r, &br, &cpg_positions);
+
+        for cpg_position in &cpg_positions {
+            if duplicates.cpgs.contains(cpg_position) {
+                continue;
+            }
             let r = cpg2reads
                 .entry(*cpg_position)
                 .or_insert(AssociatedReads::new(max_depth));
@@ -216,7 +234,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         for (i, (cpg, qfdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_approximately_equal(*qfdrp, 8.0 / 15.0);
@@ -233,7 +259,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         for (i, (cpg, qfdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_eq!(*qfdrp, 8.0 / 15.0);
@@ -251,7 +285,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         for (i, (cpg, qfdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_eq!(*qfdrp, 1.0);
@@ -268,7 +310,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6, 13, 15, 17, 19];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         for (i, (cpg, qfdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_eq!(*qfdrp, 8.0 / 15.0);
@@ -284,7 +334,15 @@ mod tests {
         let min_overlap = 4;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         assert_eq!(result.len(), 0);
     }
 }

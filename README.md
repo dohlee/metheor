@@ -22,6 +22,38 @@ conda install -c dohlee metheor
 
 ## Usage
 
+### Overlapping paired-end reads
+
+By default, each alignment is counted independently, including overlapping mates.
+To avoid counting overlapping paired-end observations twice, add `--ignore-overlaps`
+to any of the seven heterogeneity commands:
+
+```
+metheor pm --input sample.sorted.bam --output sample.pm.tsv --ignore-overlaps
+```
+
+This option requires coordinate-sorted input. It matches primary mates using their
+read name, read group (`RG`, when present), opposite read-end flags, and reciprocal
+alignment/mate coordinates. Reads without names (`QNAME=*`), missing mates, and
+nonoverlapping observations are kept;
+secondary and supplementary alignments retain their existing treatment.
+
+For a duplicated observation, the first eligible alignment in coordinate order is
+retained; input order breaks ties. Eligibility includes the command's mapping-quality,
+CpG-count, and target-CpG filters. This selection is independent of Read 1/Read 2 priority or base quality.
+
+The observation being deduplicated depends on the measure:
+
+- PDR, MHL, FDRP, and qFDRP: each CpG's contribution from a fragment is counted once.
+- LPMD: each CpG pair's contribution from a fragment is counted once.
+- PM and ME: each exact CpG quartet's contribution from a fragment is counted once.
+
+Full read patterns are preserved for computing read concordance, methylated
+stretches, and unique quartets in partially overlapping mates. Mates are not merged,
+and patterns spanning a gap between them are not inferred. Corrected observations
+can reduce effective depth and cause loci to fall below `--min-depth`. Omit
+`--ignore-overlaps` to reproduce the original alignment-wise counting.
+
 ### Native 5mC calls (MM/ML)
 
 The seven measures accept native methylation calls when an alignment has MM/ML
@@ -290,7 +322,7 @@ Produces a (BedGraph-compatible) tab-separated table with the following four col
 
 **Add bismark `XM` tag to BAM file created with aligners other than bismark**
 ```
-metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
+metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa> --threads 4
 ```
 
 *Options*
@@ -298,6 +330,9 @@ metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
 - `-i, --input`: Path to input BAM file.
 - `-o, --output`: Path to output BAM file tagged with XM tag.
 - `-g, --genome`: Path to genome fasta file.
+- `--threads`: Positive number of CPU workers calculating XM tags. [default: 1]
+
+Tagging accepts SAM or BAM input. Output is BAM for paths ending in `.bam` and SAM otherwise. Multiple workers share the reference genome and process bounded batches, preserving input record order, headers, and XM calls. Input reading and output writing remain serial; the worker count does not enable BAM compression threads. The default streams one record at a time.
 
 ## Methylation heterogeneity profiles of 928 CCLE cell lines
 
