@@ -230,6 +230,9 @@ pub fn determine_xm_tag_string(
 
                 used_ref_len += *length as usize;
             }
+            Cigar::RefSkip(length) => {
+                used_ref_len += *length as usize;
+            }
             Cigar::SoftClip(length) => {
                 if used_read_len == 0 {
                     leading_soft_clip = *length as usize;

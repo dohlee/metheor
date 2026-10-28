@@ -274,6 +274,21 @@ metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
 - `-o, --output`: Path to output BAM file tagged with XM tag.
 - `-g, --genome`: Path to genome fasta file.
 
+Tagging follows CIGAR query/reference consumption:
+
+| Operations | Query | Reference | XM behavior |
+| --- | --- | --- | --- |
+| `M`, `=`, `X` | yes | yes | Compare aligned read and reference bases. |
+| `I` | yes | no | Inserted bases receive dots; neighboring cytosines can have unknown context (`U/u`). |
+| `D`, `N` | no | yes | Add no XM positions; determine context across the deleted or skipped bases. |
+| `S` | yes | no | Retain clipped query bases as dots. |
+| `H`, `P` | no | no | Add no XM positions. |
+
+As in Bismark, context across a deletion or reference skip uses the remaining
+aligned sequence, so it can differ from the context in the unedited genome.
+Metheor retains the two reference flanking bases outside the aligned segment
+when calling cytosines at an alignment edge; missing chromosome flanks are `N`.
+
 ## Methylation heterogeneity profiles of 928 CCLE cell lines
 
 We computed DNA methylation heterogeneity profiles of 928 Cancer Cell Line Encyclopedia (CCLE) cell lines using Metheor. The resulting profiles are publicly available at https://doi.org/10.6084/m9.figshare.21100717.v1.
