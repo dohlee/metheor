@@ -35,6 +35,11 @@ impl BismarkRead {
         match r.aux(b"XM") {
             Ok(value) => {
                 if let Aux::String(xm) = value {
+                    assert_eq!(
+                        xm.len(),
+                        r.seq_len(),
+                        "XM tag length must match read length"
+                    );
                     // if value is a type of Aux::String, run:
                     let cpgs = get_cpgs(r, xm);
                     Self {
@@ -181,11 +186,11 @@ impl BismarkRead {
 
         for cpg in &self.cpgs {
             if min_anchor_pos != -1 {
-                while (cpg.relpos - min_anchor_pos > max_distance) && !anchors.is_empty() {
+                while (cpg.abspos.pos - min_anchor_pos > max_distance) && !anchors.is_empty() {
                     anchors.remove(0);
 
                     if !anchors.is_empty() {
-                        min_anchor_pos = anchors[0].relpos;
+                        min_anchor_pos = anchors[0].abspos.pos;
                     } else {
                         min_anchor_pos = -1;
                     }
@@ -193,7 +198,7 @@ impl BismarkRead {
             }
 
             for anchor in anchors.iter() {
-                if cpg.relpos - anchor.relpos < min_distance {
+                if cpg.abspos.pos - anchor.abspos.pos < min_distance {
                     continue;
                 }
 
@@ -215,7 +220,7 @@ impl BismarkRead {
             }
 
             if min_anchor_pos == -1 {
-                min_anchor_pos = cpg.relpos;
+                min_anchor_pos = cpg.abspos.pos;
             }
             anchors.push(*cpg);
         }
@@ -322,6 +327,11 @@ impl Clone for CpGPosition {
 
 fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
     let mut cpgs: Vec<CpG> = Vec::new();
+    let forward = if r.is_paired() {
+        r.is_reverse() == r.is_last_in_template()
+    } else {
+        !r.is_reverse()
+    };
 
     for (relpos, (abspos, c)) in r.reference_positions_full().zip(xm.chars()).enumerate() {
         if (c != 'z') && (c != 'Z') {
@@ -329,7 +339,7 @@ fn get_cpgs(r: &Record, xm: &str) -> Vec<CpG> {
         }
 
         if let Some(abspos) = abspos {
-            if (r.flags() == 0) || (r.flags() == 99) || (r.flags() == 147) {
+            if forward {
                 // Forward
                 let cpgpos = CpGPosition::new(r.tid(), abspos as i32);
                 cpgs.push(CpG::new(relpos as i32, cpgpos, c));
