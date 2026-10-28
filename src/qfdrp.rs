@@ -356,7 +356,7 @@ mod tests {
             }
         }
 
-        for (_, reads) in cpg2reads.iter() {
+        for reads in cpg2reads.values() {
             assert_eq!(reads.get_num_reads(), 16);
         }
     }

@@ -260,7 +260,7 @@ mod tests {
         let input = "tests/test1.bam";
         let cpg2reads = startup(input);
 
-        for (_, reads) in cpg2reads.iter() {
+        for reads in cpg2reads.values() {
             assert_eq!(reads.compute_mhl(), 0.1625);
         }
     }
@@ -269,7 +269,7 @@ mod tests {
         let input = "tests/test1.bam";
         let cpg2reads = startup(input);
 
-        for (_, reads) in cpg2reads.iter() {
+        for reads in cpg2reads.values() {
             assert_eq!(reads.compute_mhl(), 0.1625);
         }
     }
@@ -278,7 +278,7 @@ mod tests {
         let input = "tests/test2.bam";
         let cpg2reads = startup(input);
 
-        for (_, reads) in cpg2reads.iter() {
+        for reads in cpg2reads.values() {
             assert_eq!(reads.compute_mhl(), 0.5);
         }
     }
@@ -287,7 +287,7 @@ mod tests {
         let input = "tests/test3.bam";
         let cpg2reads = startup(input);
 
-        for (_, reads) in cpg2reads.iter() {
+        for reads in cpg2reads.values() {
             assert_eq!(reads.compute_mhl(), 0.5);
         }
     }
@@ -296,7 +296,7 @@ mod tests {
         let input = "tests/test4.bam";
         let cpg2reads = startup(input);
 
-        for (_, reads) in cpg2reads.iter() {
+        for reads in cpg2reads.values() {
             assert_eq!(reads.compute_mhl(), 0.1625);
         }
     }
