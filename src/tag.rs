@@ -399,7 +399,7 @@ pub fn determine_xm_tag_string(
     )
 }
 
-pub fn run(input: &str, output: &str, genome: &str) {
+pub fn run(input: &str, output: &str, genome: &str, threads: usize) {
     let mut reader = bamutil::get_reader(input);
     let is_paired_end = bamutil::is_paired_end(input);
     let header = bamutil::get_header(&reader);
@@ -447,20 +447,41 @@ pub fn run(input: &str, output: &str, genome: &str) {
         Err(error) => panic!("Error opening alignment file to write: {}", error),
     };
 
-    // Main loop
-    // Iterate aligned reads and determine xm tag string.
-    for mut r in reader.records().map(|r| r.unwrap()) {
-        // Determine XM tag string by comparing read sequence and reference sequence.
+    let tag_record = |r: &mut Record| {
         let xm_tag_string =
-            determine_xm_tag_string(&r, &refgenome, &tid2size, &rcmapping, is_paired_end);
-        // Attach XM tag to the record.
-        let add_result = r.push_aux("XM".as_bytes(), Aux::String(&xm_tag_string));
-        match add_result {
-            Ok(_) => (),
-            Err(e) => panic!("Error adding XM tag to alignment record. {}", e),
+            determine_xm_tag_string(r, &refgenome, &tid2size, &rcmapping, is_paired_end);
+        r.push_aux(b"XM", Aux::String(&xm_tag_string))
+            .unwrap_or_else(|e| panic!("Error adding XM tag to alignment record. {}", e));
+    };
+
+    if threads == 1 {
+        for mut r in reader.records().map(|r| r.unwrap()) {
+            tag_record(&mut r);
+            writer.write(&r).expect("Error writing to output file.");
         }
-        // Write record to output.
-        writer.write(&r).expect("Error writing to output file.");
+    } else {
+        let mut records = reader.records();
+        loop {
+            // Bound record buffering independently of the requested worker count.
+            let mut batch: Vec<_> = records.by_ref().take(4096).map(|r| r.unwrap()).collect();
+            if batch.is_empty() {
+                break;
+            }
+            let chunk_size = batch.len().div_ceil(threads);
+            let tag_record = &tag_record;
+            std::thread::scope(|scope| {
+                for chunk in batch.chunks_mut(chunk_size) {
+                    scope.spawn(move || {
+                        for r in chunk {
+                            tag_record(r);
+                        }
+                    });
+                }
+            });
+            for r in batch {
+                writer.write(&r).expect("Error writing to output file.");
+            }
+        }
     }
 }
 
@@ -480,6 +501,7 @@ mod tests {
             "tests/test1.bam",
             "tests/no_such_directory/out.bam",
             "tests/tinyref.fa",
+            1,
         )
     }
     #[test]
@@ -489,6 +511,7 @@ mod tests {
             "tests/test1.bam",
             "tests/out.tagged.bam",
             "tests/there_is_no_such.fa",
+            1,
         )
     }
 }

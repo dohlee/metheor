@@ -265,7 +265,7 @@ Produces a (BedGraph-compatible) tab-separated table with the following four col
 
 **Add bismark `XM` tag to BAM file created with aligners other than bismark**
 ```
-metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
+metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa> --threads 4
 ```
 
 *Options*
@@ -273,6 +273,9 @@ metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
 - `-i, --input`: Path to input BAM file.
 - `-o, --output`: Path to output BAM file tagged with XM tag.
 - `-g, --genome`: Path to genome fasta file.
+- `--threads`: Positive number of CPU workers calculating XM tags. [default: 1]
+
+Tagging accepts SAM or BAM input. Output is BAM for paths ending in `.bam` and SAM otherwise. Multiple workers share the reference genome and process bounded batches, preserving input record order, headers, and XM calls. Input reading and output writing remain serial; the worker count does not enable BAM compression threads. The default streams one record at a time.
 
 ## Methylation heterogeneity profiles of 928 CCLE cell lines
 

@@ -227,5 +227,9 @@ pub enum Commands {
 
         #[clap(long, short = 'g', required = true, display_order = 3)]
         genome: String,
+
+        /// Number of CPU workers calculating XM tags (input/output remain serial).
+        #[clap(long, default_value = "1", display_order = 4)]
+        threads: std::num::NonZeroUsize,
     },
 }
