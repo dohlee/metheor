@@ -152,30 +152,29 @@ pub fn compute_helper(
         } // Read filtering: Minimum quality should be >= min_qual.
 
         let mut cpg_positions = br.get_cpg_positions();
-        if cpg_positions.is_empty() {
+        if br.get_first_cpg_position().is_none() {
             continue;
         } // Read filtering: Ignore reads without CpGs.
 
-        if let Some(first_cpg_position) = br.get_first_cpg_position() {
-            cpg2reads.retain(|&cpg, reads| {
-                // if cpg < first_cpg_position {
-                if cpg.is_before(&first_cpg_position, 150) {
-                    if reads.get_coverage() >= min_depth {
-                        result.insert(
-                            cpg,
-                            (
-                                reads.compute_pdr(),
-                                reads.get_n_concordant(),
-                                reads.get_n_discordant(),
-                            ),
-                        );
-                    }
-                    false
-                } else {
-                    true
+        // Reverse-strand CpGs can begin one base before the next alignment.
+        let read_start = readutil::CpGPosition::new(r.tid(), r.pos() as i32);
+        cpg2reads.retain(|&cpg, reads| {
+            if cpg.is_before(&read_start, 1) {
+                if reads.get_coverage() >= min_depth {
+                    result.insert(
+                        cpg,
+                        (
+                            reads.compute_pdr(),
+                            reads.get_n_concordant(),
+                            reads.get_n_discordant(),
+                        ),
+                    );
                 }
-            }); // Finalize and compute metric for the CpGs before the first CpG in this read.
-        }
+                false
+            } else {
+                true
+            }
+        });
 
         for cpg_position in cpg_positions.iter_mut() {
             let r = cpg2reads

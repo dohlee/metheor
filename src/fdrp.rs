@@ -209,18 +209,18 @@ fn compute_helper(
             continue;
         }
 
-        if let Some(first_cpg_position) = br.get_first_cpg_position() {
-            cpg2reads.retain(|&cpg, reads| {
-                if cpg < first_cpg_position {
-                    if reads.get_num_reads() >= min_depth {
-                        result.insert(cpg, reads.compute_fdrp(min_overlap));
-                    }
-                    false
-                } else {
-                    true
+        // Reverse-strand CpGs can begin one base before the next alignment.
+        let read_start = readutil::CpGPosition::new(r.tid(), r.pos() as i32);
+        cpg2reads.retain(|&cpg, reads| {
+            if cpg.is_before(&read_start, 1) {
+                if reads.get_num_reads() >= min_depth {
+                    result.insert(cpg, reads.compute_fdrp(min_overlap));
                 }
-            }); // Finalize and compute metric for the CpGs before the first CpG in this read.
-        }
+                false
+            } else {
+                true
+            }
+        });
 
         for cpg_position in br.get_cpg_positions().iter() {
             let r = cpg2reads
