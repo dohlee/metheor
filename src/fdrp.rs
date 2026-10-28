@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
 
-use crate::{bamutil, progressbar, readutil};
+use crate::{bamutil, overlap, progressbar, readutil};
 
 const MAX_READ_LEN: i32 = 201;
 
@@ -145,6 +145,7 @@ impl AssociatedReads {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn compute(
     input: &str,
     output: &str,
@@ -153,8 +154,17 @@ pub fn compute(
     max_depth: usize,
     min_overlap: i32,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) {
-    let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, cpg_set);
+    let result = compute_helper(
+        input,
+        min_qual,
+        min_depth,
+        max_depth,
+        min_overlap,
+        cpg_set,
+        ignore_overlaps,
+    );
 
     let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
@@ -180,6 +190,7 @@ fn compute_helper(
     max_depth: usize,
     min_overlap: i32,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) -> BTreeMap<readutil::CpGPosition, f32> {
     let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
@@ -190,6 +201,7 @@ fn compute_helper(
     let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
 
     let bar = progressbar::ProgressBar::new();
+    let mut overlaps = overlap::OverlapTracker::new(ignore_overlaps);
 
     let mut cpg2reads: BTreeMap<readutil::CpGPosition, AssociatedReads> = BTreeMap::new();
     let mut result: BTreeMap<readutil::CpGPosition, f32> = BTreeMap::new();
@@ -222,7 +234,25 @@ fn compute_helper(
             }
         });
 
-        for cpg_position in br.get_cpg_positions().iter() {
+        let cpg_positions = br.get_cpg_positions();
+        let duplicates = if ignore_overlaps {
+            let counted_cpgs: Vec<_> = cpg_positions
+                .iter()
+                .copied()
+                .filter(|pos| {
+                    pos.pos - br.get_start_pos() <= MAX_READ_LEN
+                        && br.get_end_pos() - pos.pos <= MAX_READ_LEN
+                })
+                .collect();
+            overlaps.observe(&r, &br, &counted_cpgs)
+        } else {
+            overlap::Observations::default()
+        };
+
+        for cpg_position in &cpg_positions {
+            if duplicates.cpgs.contains(cpg_position) {
+                continue;
+            }
             let r = cpg2reads
                 .entry(*cpg_position)
                 .or_insert(AssociatedReads::new(*cpg_position, max_depth));
@@ -260,7 +290,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         for (i, (cpg, fdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_eq!(*fdrp, 1.0);
@@ -277,7 +315,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         for (i, (cpg, fdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert!((*fdrp - (1.0 - 56.0 / 120.0)).abs() < 1e-4); // Approximately same.
@@ -294,7 +340,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         for (i, (cpg, fdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_eq!(*fdrp, 1.0);
@@ -311,7 +365,15 @@ mod tests {
 
         let cpg_positions = [0, 2, 4, 6, 13, 15, 17, 19];
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         for (i, (cpg, fdrp)) in result.iter().enumerate() {
             assert_eq!(cpg.pos, cpg_positions[i]);
             assert_eq!(*fdrp, 1.0);
@@ -327,7 +389,15 @@ mod tests {
         let min_overlap = 4;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_qual, min_depth, max_depth, min_overlap, &cpg_set);
+        let result = compute_helper(
+            input,
+            min_qual,
+            min_depth,
+            max_depth,
+            min_overlap,
+            &cpg_set,
+            false,
+        );
         assert_eq!(result.len(), 0);
     }
 }
