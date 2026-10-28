@@ -268,6 +268,18 @@ Produces a (BedGraph-compatible) tab-separated table with the following four col
 metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
 ```
 
+Output paths ending in `.bam` produce compressed BAM; other file paths produce
+SAM. A bare relative filename such as `tagged.bam` is supported. Input alignment
+and reference genome files must be different from the output file.
+
+Use `--output -` to stream compressed BAM directly to stdout. Progress messages
+then go to stderr, keeping the stream readable by tools such as samtools:
+
+```sh
+metheor tag --input sample.bam --genome reference.fa --output - \
+    | samtools sort -o tagged.sorted.bam -
+```
+
 *Options*
 
 - `-i, --input`: Path to input BAM file.

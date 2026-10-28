@@ -7,6 +7,8 @@ use rust_htslib::{
 };
 use std::cmp::{max, min};
 use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use std::str;
 
@@ -408,14 +410,36 @@ pub fn run(input: &str, output: &str, genome: &str) {
     let rcmapping = get_rcmapping();
 
     // Assert if the output directory exists.
+    let to_stdout = output == "-";
     let path = PathBuf::from(&output);
     let dir = path.parent().unwrap();
 
-    if !dir.is_dir() {
+    if !to_stdout && !dir.as_os_str().is_empty() && !dir.is_dir() {
         panic!(
             "No such directory for output alignment file: {}",
             dir.to_str().unwrap()
         )
+    }
+    if !to_stdout {
+        for source in [input, genome] {
+            #[cfg(unix)]
+            let same_file = std::fs::metadata(source)
+                .ok()
+                .zip(std::fs::metadata(output).ok())
+                .is_some_and(|(source, destination)| {
+                    source.dev() == destination.dev() && source.ino() == destination.ino()
+                });
+            // shortcut: canonical paths miss non-Unix hard links; use file identities when those platforms are supported.
+            #[cfg(not(unix))]
+            let same_file = std::fs::canonicalize(source)
+                .ok()
+                .zip(std::fs::canonicalize(output).ok())
+                .is_some_and(|(source, destination)| source == destination);
+            assert!(
+                !same_file,
+                "Output alignment must be different from the input alignment and reference genome"
+            );
+        }
     }
     // Prepare reference genome.
     let refgenome_reader = match faidx::Reader::from_path(genome) {
@@ -424,7 +448,11 @@ pub fn run(input: &str, output: &str, genome: &str) {
             panic!("Error opening reference genome file: {}", error);
         }
     };
-    println!("Parsing reference genome...");
+    if to_stdout {
+        eprintln!("Parsing reference genome...");
+    } else {
+        println!("Parsing reference genome...");
+    }
     let mut refgenome: HashMap<usize, Vec<u8>> = HashMap::new();
     for (tid, _size) in tid2size.iter() {
         let ref_array = refgenome_reader
@@ -433,16 +461,25 @@ pub fn run(input: &str, output: &str, genome: &str) {
 
         refgenome.insert(*tid, ref_array);
     }
-    println!("Done!");
+    if to_stdout {
+        eprintln!("Done!");
+    } else {
+        println!("Done!");
+    }
 
     // Prepare output writer.
     let header_tmpl = get_header_template_from_bam(input);
-    let format = if output.ends_with(".bam") {
+    let format = if to_stdout || output.ends_with(".bam") {
         bam::Format::Bam
     } else {
         bam::Format::Sam
     };
-    let mut writer = match bam::Writer::from_path(output, &header_tmpl, format) {
+    let writer = if to_stdout {
+        bam::Writer::from_stdout(&header_tmpl, format)
+    } else {
+        bam::Writer::from_path(output, &header_tmpl, format)
+    };
+    let mut writer = match writer {
         Ok(writer) => writer,
         Err(error) => panic!("Error opening alignment file to write: {}", error),
     };

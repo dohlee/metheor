@@ -222,6 +222,7 @@ pub enum Commands {
         #[clap(long, short = 'i', required = true, display_order = 1)]
         input: String,
 
+        /// Output BAM (.bam), SAM (other paths), or - for compressed BAM on stdout.
         #[clap(long, short = 'o', required = true, display_order = 2)]
         output: String,
 
