@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use rust_htslib::bam::{ext::BamRecordExtensions, record::Aux, Record};
 
@@ -37,22 +37,29 @@ pub(super) fn get_cpgs(record: &Record) -> Vec<CpG> {
         assert!(!codes.is_empty(), "MM group must name a modification");
         let canonical = header.as_bytes()[0];
         let mut count: usize = 0;
-        let canonical_count = sequence
+        let mut canonical_positions: Vec<_> = sequence
             .iter()
-            .filter(|&&base| {
+            .enumerate()
+            .filter_map(|(position, &base)| {
                 let base = original_base(base, record.is_reverse());
-                canonical == b'N' || base == canonical || (canonical == b'U' && base == b'T')
+                (canonical == b'N' || base == canonical || (canonical == b'U' && base == b'T'))
+                    .then_some(position)
             })
-            .count();
+            .collect();
+        if record.is_reverse() {
+            canonical_positions.reverse();
+        }
+        let mut explicit_positions = HashSet::new();
         for delta in parts {
             count = count
                 .checked_add(delta.parse::<usize>().expect("Invalid MM delta"))
                 .and_then(|count| count.checked_add(1))
                 .expect("MM delta overflow");
             assert!(
-                count <= canonical_count,
+                count <= canonical_positions.len(),
                 "MM coordinates exceed read sequence"
             );
+            explicit_positions.insert(canonical_positions[count - 1]);
             probability_count += if codes.bytes().all(|base| base.is_ascii_digit()) {
                 1
             } else {
@@ -66,6 +73,7 @@ pub(super) fn get_cpgs(record: &Record) -> Vec<CpG> {
         for (query_pos, &base) in sequence.iter().enumerate() {
             if (canonical == b'N' || canonical == original_base(base, record.is_reverse()))
                 && cpg_position(query_pos, negative).is_some()
+                && !explicit_positions.contains(&query_pos)
             {
                 states.insert((query_pos, negative), Some(false));
             }
@@ -97,7 +105,16 @@ pub(super) fn get_cpgs(record: &Record) -> Vec<CpG> {
             })
             .or_insert(value);
     }
-    states.extend(explicit);
+    for (position, value) in explicit {
+        states
+            .entry(position)
+            .and_modify(|previous| {
+                if *previous != value {
+                    *previous = None;
+                }
+            })
+            .or_insert(value);
+    }
     let mut cpgs = Vec::new();
     for ((query_pos, negative), state) in states {
         if let (Some(position), Some(methylated)) = (cpg_position(query_pos, negative), state) {

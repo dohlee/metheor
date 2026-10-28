@@ -252,3 +252,20 @@ fn conflicting_duplicate_5mc_codes_remain_unknown() {
     let read = native_read(0, "8M", "CGCGCGCG", "MM:Z:C+m?,0;C+27551?,0;\tML:B:C,255,0");
     assert_eq!(read.get_num_cpgs(), 0);
 }
+
+#[test]
+fn implicit_and_explicit_5mc_aliases_cannot_override_each_other() {
+    for groups in ["C+m.;C+27551?,0;", "C+27551?,0;C+m.;"] {
+        let read = native_read(0, "8M", "CGCGCGCG", &format!("MM:Z:{groups}\tML:B:C,255"));
+        let calls: Vec<_> = read
+            .get_cpgs()
+            .iter()
+            .map(|c| (c.abspos.pos, c.methylated))
+            .collect();
+        assert_eq!(
+            calls,
+            [(102, false), (104, false), (106, false)],
+            "{groups}"
+        );
+    }
+}
