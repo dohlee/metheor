@@ -34,7 +34,8 @@ metheor pm --input sample.sorted.bam --output sample.pm.tsv --ignore-overlaps
 
 This option requires coordinate-sorted input. It matches primary mates using their
 read name, read group (`RG`, when present), opposite read-end flags, and reciprocal
-alignment/mate coordinates. Missing mates and nonoverlapping observations are kept;
+alignment/mate coordinates. Reads without names (`QNAME=*`), missing mates, and
+nonoverlapping observations are kept;
 secondary and supplementary alignments retain their existing treatment.
 
 For a duplicated observation, the first eligible alignment in coordinate order is

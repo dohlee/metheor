@@ -466,3 +466,21 @@ fn many_fragments_at_one_coordinate_remain_independent() {
         assert_eq!(&row[4..], &["1024", "0"]);
     }
 }
+
+#[test]
+fn unnamed_reads_are_not_assumed_to_be_matching_mates() {
+    let w = Workspace::new();
+    let records: String = [99, 99, 147, 147]
+        .iter()
+        .map(|&flags| paired_record("*", flags, 101, 101, 60, "8M", "Z.Z.Z.Z."))
+        .collect();
+    let input = w.sam(&records);
+    w.command("pdr", &input, &["-d", "1", "--ignore-overlaps"])
+        .assert()
+        .success();
+    let rows = w.rows();
+    assert_eq!(rows.len(), 4);
+    for row in rows {
+        assert_eq!(&row[4..], &["4", "0"]);
+    }
+}

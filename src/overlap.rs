@@ -73,6 +73,7 @@ impl OverlapTracker {
         }
 
         if !record.is_paired()
+            || record.qname() == b"*"
             || record.is_mate_unmapped()
             || record.is_secondary()
             || record.is_supplementary()
