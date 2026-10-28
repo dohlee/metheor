@@ -2,6 +2,8 @@ mod common;
 
 use common::{record, Workspace};
 use predicates::str::contains;
+use rust_htslib::{bam, bam::Read as BamRead, bgzf};
+use std::io::{Read, Write};
 
 #[test]
 fn streaming_measures_reject_unsorted_alignments_before_replacing_output() {
@@ -81,5 +83,46 @@ fn measures_without_streaming_finalization_keep_accepting_unsorted_records() {
         let args: &[&str] = if metric == "lpmd" { &[] } else { &["-d", "1"] };
         w.command(metric, &input, args).assert().success();
         assert_eq!(w.rows().len(), 2);
+    }
+}
+
+#[test]
+fn corrupted_auxiliary_tags_fail_before_replacing_output() {
+    let w = Workspace::new();
+    let input = w.sam(&record("read", 0, 101, 60, "8M", "Z.Z.Z.Z."));
+    let valid = w.path("valid.bam");
+    let mut reader = bam::Reader::from_path(input).unwrap();
+    let header = bam::Header::from_template(reader.header());
+    {
+        let mut writer = bam::Writer::from_path(&valid, &header, bam::Format::Bam).unwrap();
+        for record in reader.records() {
+            writer.write(&record.unwrap()).unwrap();
+        }
+    }
+    let mut bytes = Vec::new();
+    bgzf::Reader::from_path(&valid)
+        .unwrap()
+        .read_to_end(&mut bytes)
+        .unwrap();
+    let tag = bytes
+        .windows(3)
+        .position(|window| window == b"XMZ")
+        .unwrap();
+    bytes[tag + 2] = b'Q';
+    let malformed = w.path("malformed.bam");
+    {
+        let mut writer = bgzf::Writer::from_path(&malformed).unwrap();
+        writer.write_all(&bytes).unwrap();
+    }
+    for metric in ["pdr", "mhl", "fdrp", "qfdrp", "pm", "me", "lpmd"] {
+        let args: &[&str] = if metric == "lpmd" { &[] } else { &["-d", "1"] };
+        w.command(metric, &valid, args).assert().success();
+        w.write("output.tsv", "previous output\n");
+        w.command(metric, &malformed, args).assert().failure();
+        assert_eq!(
+            std::fs::read_to_string(w.path("output.tsv")).unwrap(),
+            "previous output\n",
+            "{metric}"
+        );
     }
 }

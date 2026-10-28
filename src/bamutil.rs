@@ -29,10 +29,12 @@ pub fn methylation_records(
                 unmapped += 1;
                 continue;
             }
-            if ![b"XM", b"MM", b"Mm"]
-                .iter()
-                .any(|tag| record.aux(*tag).is_ok())
-            {
+            let mut tagged = false;
+            for field in record.aux_iter() {
+                let (tag, _) = field.expect("Error parsing alignment auxiliary fields");
+                tagged |= matches!(tag, b"XM" | b"MM" | b"Mm");
+            }
+            if !tagged {
                 untagged += 1;
                 continue;
             }
