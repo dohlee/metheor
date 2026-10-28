@@ -263,7 +263,7 @@ mod tests {
     use super::*;
 
     fn assert_approximately_equal(a: f32, b: f32) {
-        assert!((a - b) < 1e-5);
+        assert!((a - b).abs() < 1e-5, "expected {}, got {}", b, a);
     }
 
     #[test]

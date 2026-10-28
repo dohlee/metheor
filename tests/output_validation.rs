@@ -1,16 +1,13 @@
+mod common;
+
 use assert_cmd::Command;
+use common::Workspace;
 use std::fs;
 use std::path::Path;
 
 #[cfg(test)]
 mod output_validation_tests {
     use super::*;
-
-    fn clean_output_file(path: &str) {
-        if Path::new(path).exists() {
-            let _ = fs::remove_file(path);
-        }
-    }
 
     // Helper function to validate output file structure and basic content
     fn validate_output_structure(
@@ -59,8 +56,9 @@ mod output_validation_tests {
 
     #[test]
     fn test_pdr_output_correctness() -> Result<(), Box<dyn std::error::Error>> {
-        let output_file = "test_pdr_output.tsv";
-        clean_output_file(output_file);
+        let w = Workspace::new();
+        let output_file_path = w.path("test_pdr_output.tsv");
+        let output_file = output_file_path.to_str().unwrap();
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
@@ -96,24 +94,25 @@ mod output_validation_tests {
             if fields.len() >= 6 {
                 // Try to parse the PDR value (4th column, 0-indexed as 3)
                 let pdr_str = fields[3];
-                if let Ok(pdr_val) = pdr_str.parse::<f64>() {
-                    assert!(
-                        (0.0..=1.0).contains(&pdr_val),
-                        "PDR value {} out of bounds [0,1]",
-                        pdr_val
-                    );
-                }
+                let pdr_val = pdr_str
+                    .parse::<f64>()
+                    .expect("metric value must be numeric");
+                assert!(
+                    (0.0..=1.0).contains(&pdr_val),
+                    "PDR value {} out of bounds [0,1]",
+                    pdr_val
+                );
             }
         }
 
-        clean_output_file(output_file);
         Ok(())
     }
 
     #[test]
     fn test_lpmd_output_correctness() -> Result<(), Box<dyn std::error::Error>> {
-        let output_file = "test_lpmd_output.tsv";
-        clean_output_file(output_file);
+        let w = Workspace::new();
+        let output_file_path = w.path("test_lpmd_output.tsv");
+        let output_file = output_file_path.to_str().unwrap();
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("lpmd")
@@ -150,14 +149,14 @@ mod output_validation_tests {
             header
         );
 
-        clean_output_file(output_file);
         Ok(())
     }
 
     #[test]
     fn test_mhl_output_correctness() -> Result<(), Box<dyn std::error::Error>> {
-        let output_file = "test_mhl_output.tsv";
-        clean_output_file(output_file);
+        let w = Workspace::new();
+        let output_file_path = w.path("test_mhl_output.tsv");
+        let output_file = output_file_path.to_str().unwrap();
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("mhl")
@@ -190,24 +189,25 @@ mod output_validation_tests {
             let fields: Vec<&str> = line.split('\t').collect();
             if fields.len() >= 4 {
                 let mhl_str = fields[3];
-                if let Ok(mhl_val) = mhl_str.parse::<f64>() {
-                    assert!(
-                        (0.0..=1.0).contains(&mhl_val),
-                        "MHL value {} out of bounds [0,1]",
-                        mhl_val
-                    );
-                }
+                let mhl_val = mhl_str
+                    .parse::<f64>()
+                    .expect("metric value must be numeric");
+                assert!(
+                    (0.0..=1.0).contains(&mhl_val),
+                    "MHL value {} out of bounds [0,1]",
+                    mhl_val
+                );
             }
         }
 
-        clean_output_file(output_file);
         Ok(())
     }
 
     #[test]
     fn test_pm_output_correctness() -> Result<(), Box<dyn std::error::Error>> {
-        let output_file = "test_pm_output.tsv";
-        clean_output_file(output_file);
+        let w = Workspace::new();
+        let output_file_path = w.path("test_pm_output.tsv");
+        let output_file = output_file_path.to_str().unwrap();
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pm")
@@ -238,24 +238,23 @@ mod output_validation_tests {
             let fields: Vec<&str> = line.split('\t').collect();
             if fields.len() >= 6 {
                 let pm_str = fields[5]; // PM value is in the last column
-                if let Ok(pm_val) = pm_str.parse::<f64>() {
-                    assert!(
-                        (0.0..=1.0).contains(&pm_val),
-                        "PM value {} out of bounds [0,1]",
-                        pm_val
-                    );
-                }
+                let pm_val = pm_str.parse::<f64>().expect("metric value must be numeric");
+                assert!(
+                    (0.0..=1.0).contains(&pm_val),
+                    "PM value {} out of bounds [0,1]",
+                    pm_val
+                );
             }
         }
 
-        clean_output_file(output_file);
         Ok(())
     }
 
     #[test]
     fn test_me_output_correctness() -> Result<(), Box<dyn std::error::Error>> {
-        let output_file = "test_me_output.tsv";
-        clean_output_file(output_file);
+        let w = Workspace::new();
+        let output_file_path = w.path("test_me_output.tsv");
+        let output_file = output_file_path.to_str().unwrap();
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("me")
@@ -286,24 +285,23 @@ mod output_validation_tests {
             let fields: Vec<&str> = line.split('\t').collect();
             if fields.len() >= 6 {
                 let me_str = fields[5]; // ME value is in the last column
-                if let Ok(me_val) = me_str.parse::<f64>() {
-                    assert!(
-                        (0.0..=1.0).contains(&me_val),
-                        "ME value {} out of bounds [0,1]",
-                        me_val
-                    );
-                }
+                let me_val = me_str.parse::<f64>().expect("metric value must be numeric");
+                assert!(
+                    (0.0..=1.0).contains(&me_val),
+                    "ME value {} out of bounds [0,1]",
+                    me_val
+                );
             }
         }
 
-        clean_output_file(output_file);
         Ok(())
     }
 
     #[test]
     fn test_fdrp_output_correctness() -> Result<(), Box<dyn std::error::Error>> {
-        let output_file = "test_fdrp_output.tsv";
-        clean_output_file(output_file);
+        let w = Workspace::new();
+        let output_file_path = w.path("test_fdrp_output.tsv");
+        let output_file = output_file_path.to_str().unwrap();
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("fdrp")
@@ -338,24 +336,25 @@ mod output_validation_tests {
             let fields: Vec<&str> = line.split('\t').collect();
             if fields.len() >= 4 {
                 let fdrp_str = fields[3];
-                if let Ok(fdrp_val) = fdrp_str.parse::<f64>() {
-                    assert!(
-                        (0.0..=1.0).contains(&fdrp_val),
-                        "FDRP value {} out of bounds [0,1]",
-                        fdrp_val
-                    );
-                }
+                let fdrp_val = fdrp_str
+                    .parse::<f64>()
+                    .expect("metric value must be numeric");
+                assert!(
+                    (0.0..=1.0).contains(&fdrp_val),
+                    "FDRP value {} out of bounds [0,1]",
+                    fdrp_val
+                );
             }
         }
 
-        clean_output_file(output_file);
         Ok(())
     }
 
     #[test]
     fn test_qfdrp_output_correctness() -> Result<(), Box<dyn std::error::Error>> {
-        let output_file = "test_qfdrp_output.tsv";
-        clean_output_file(output_file);
+        let w = Workspace::new();
+        let output_file_path = w.path("test_qfdrp_output.tsv");
+        let output_file = output_file_path.to_str().unwrap();
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("qfdrp")
@@ -390,40 +389,35 @@ mod output_validation_tests {
             let fields: Vec<&str> = line.split('\t').collect();
             if fields.len() >= 4 {
                 let qfdrp_str = fields[3];
-                if let Ok(qfdrp_val) = qfdrp_str.parse::<f64>() {
-                    assert!(
-                        (0.0..=1.0).contains(&qfdrp_val),
-                        "qFDRP value {} out of bounds [0,1]",
-                        qfdrp_val
-                    );
-                }
+                let qfdrp_val = qfdrp_str
+                    .parse::<f64>()
+                    .expect("metric value must be numeric");
+                assert!(
+                    (0.0..=1.0).contains(&qfdrp_val),
+                    "qFDRP value {} out of bounds [0,1]",
+                    qfdrp_val
+                );
             }
         }
 
-        clean_output_file(output_file);
         Ok(())
     }
 
     // Test with multiple BAM files to ensure consistency
     #[test]
     fn test_pdr_multiple_bam_files() -> Result<(), Box<dyn std::error::Error>> {
+        let w = Workspace::new();
         for i in 1..=6 {
             let input_file = format!("tests/test{}.bam", i);
-            let output_file = format!("test_pdr_test{}.tsv", i);
-
-            // Skip if input file doesn't exist
-            if !Path::new(&input_file).exists() {
-                continue;
-            }
-
-            clean_output_file(&output_file);
+            let output_path = w.path(&format!("test_pdr_test{}.tsv", i));
+            let output_file = output_path.to_str().unwrap();
 
             let mut cmd = Command::cargo_bin("metheor")?;
             cmd.arg("pdr")
                 .arg("--input")
                 .arg(&input_file)
                 .arg("--output")
-                .arg(&output_file)
+                .arg(output_file)
                 .arg("--min-depth")
                 .arg("1")
                 .arg("--min-cpgs")
@@ -435,15 +429,13 @@ mod output_validation_tests {
 
             // Verify output was created
             assert!(
-                Path::new(&output_file).exists(),
+                Path::new(output_file).exists(),
                 "Output file not created for {}",
                 input_file
             );
 
-            let _content = fs::read_to_string(&output_file)?;
+            let _content = fs::read_to_string(output_file)?;
             // Content can be empty if no CpGs pass filters, but file should exist
-
-            clean_output_file(&output_file);
         }
 
         Ok(())
@@ -452,11 +444,11 @@ mod output_validation_tests {
     // Test parameter variation effects
     #[test]
     fn test_min_depth_parameter_effects() -> Result<(), Box<dyn std::error::Error>> {
-        let output_low = "test_depth_low.tsv";
-        let output_high = "test_depth_high.tsv";
-
-        clean_output_file(output_low);
-        clean_output_file(output_high);
+        let w = Workspace::new();
+        let output_low_path = w.path("test_depth_low.tsv");
+        let output_low = output_low_path.to_str().unwrap();
+        let output_high_path = w.path("test_depth_high.tsv");
+        let output_high = output_high_path.to_str().unwrap();
 
         // Run with low min-depth
         let mut cmd_low = Command::cargo_bin("metheor")?;
@@ -495,16 +487,15 @@ mod output_validation_tests {
             "Higher min-depth should not produce more results"
         );
 
-        clean_output_file(output_low);
-        clean_output_file(output_high);
         Ok(())
     }
 
     // Test output file format validation
     #[test]
     fn test_output_file_format_structure() -> Result<(), Box<dyn std::error::Error>> {
-        let output_file = "test_format.tsv";
-        clean_output_file(output_file);
+        let w = Workspace::new();
+        let output_file_path = w.path("test_format.tsv");
+        let output_file = output_file_path.to_str().unwrap();
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
@@ -549,15 +540,15 @@ mod output_validation_tests {
             }
         }
 
-        clean_output_file(output_file);
         Ok(())
     }
 
     // Test output file permissions and creation
     #[test]
     fn test_output_file_permissions() -> Result<(), Box<dyn std::error::Error>> {
-        let output_file = "test_permissions.tsv";
-        clean_output_file(output_file);
+        let w = Workspace::new();
+        let output_file_path = w.path("test_permissions.tsv");
+        let output_file = output_file_path.to_str().unwrap();
 
         let mut cmd = Command::cargo_bin("metheor")?;
         cmd.arg("pdr")
@@ -577,7 +568,6 @@ mod output_validation_tests {
         assert!(metadata.is_file());
         // File exists and is a file (length check is redundant since len() returns u64)
 
-        clean_output_file(output_file);
         Ok(())
     }
 }
