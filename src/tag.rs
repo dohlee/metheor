@@ -232,6 +232,9 @@ pub fn determine_xm_tag_string(
 
                 used_ref_len += *length as usize;
             }
+            Cigar::RefSkip(length) => {
+                used_ref_len += *length as usize;
+            }
             Cigar::SoftClip(length) => {
                 if used_read_len == 0 {
                     leading_soft_clip = *length as usize;
@@ -278,9 +281,8 @@ pub fn determine_xm_tag_string(
         } else if char_at(&target_read_seq, idx) == 'N' {
             xm_tag.push('.');
         } else if char_at(&target_ref_seq, idx) == 'C' {
-            if (char_at(&target_read_seq, idx + 1) == '-'
-                || char_at(&target_read_seq, idx + 2) == '-')
-                && ((idx != target_read_seq.len() - 3) && (idx != target_read_seq.len() - 4))
+            if char_at(&target_read_seq, idx + 1) == '-'
+                || char_at(&target_read_seq, idx + 2) == '-'
             {
                 let mut tmp_target_read_seq: Vec<char> = Vec::new();
                 let mut tmp_target_ref_seq: Vec<char> = Vec::new();
@@ -295,7 +297,10 @@ pub fn determine_xm_tag_string(
                     if idx + tmp_count > target_read_seq.len() - 1 {
                         break;
                     }
-                    if char_at(&target_read_seq, idx + tmp_count) != '-' {
+                    // The final placeholders carry reference flanks, not deleted bases.
+                    if char_at(&target_read_seq, idx + tmp_count) != '-'
+                        || idx + tmp_count >= target_read_seq.len() - 2
+                    {
                         tmp_target_read_seq.push(char_at(&target_read_seq, idx + tmp_count));
                         tmp_target_ref_seq.push(char_at(&target_ref_seq, idx + tmp_count));
                         flag_tmp += 1;

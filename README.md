@@ -369,6 +369,21 @@ metheor tag --input sample.bam --genome reference.fa --output - \
 
 Tagging accepts SAM or BAM input. Output is BAM for paths ending in `.bam` and SAM otherwise. Multiple workers share the reference genome and process bounded batches, preserving input record order, headers, and XM calls. Input reading and output writing remain serial; the worker count does not enable BAM compression threads. The default streams one record at a time.
 
+Tagging follows CIGAR query/reference consumption:
+
+| Operations | Query | Reference | XM behavior |
+| --- | --- | --- | --- |
+| `M`, `=`, `X` | yes | yes | Compare aligned read and reference bases. |
+| `I` | yes | no | Inserted bases receive dots; neighboring cytosines can have unknown context (`U/u`). |
+| `D`, `N` | no | yes | Add no XM positions; determine context across the deleted or skipped bases. |
+| `S` | yes | no | Retain clipped query bases as dots. |
+| `H`, `P` | no | no | Add no XM positions. |
+
+As in Bismark, context across a deletion or reference skip uses the remaining
+aligned sequence, so it can differ from the context in the unedited genome.
+Metheor retains the two reference flanking bases outside the aligned segment
+when calling cytosines at an alignment edge; missing chromosome flanks are `N`.
+
 ## Methylation heterogeneity profiles of 928 CCLE cell lines
 
 We computed DNA methylation heterogeneity profiles of 928 Cancer Cell Line Encyclopedia (CCLE) cell lines using Metheor. The resulting profiles are publicly available at https://doi.org/10.6084/m9.figshare.21100717.v1.
