@@ -20,7 +20,68 @@ Install with `conda`.
 conda install -c dohlee metheor
 ```
 
+Sort input alignments by reference coordinate before analysis (`samtools sort`).
+PDR, MHL, FDRP and qFDRP validate this order. See [input requirements](docs/input-format.md)
+for filtering, depth thresholds and output coordinates.
+
 ## Usage
+
+### Overlapping paired-end reads
+
+By default, each alignment is counted independently, including overlapping mates.
+To avoid counting overlapping paired-end observations twice, add `--ignore-overlaps`
+to any of the seven heterogeneity commands:
+
+```
+metheor pm --input sample.sorted.bam --output sample.pm.tsv --ignore-overlaps
+```
+
+This option requires coordinate-sorted input. It matches primary mates using their
+read name, read group (`RG`, when present), opposite read-end flags, and reciprocal
+alignment/mate coordinates. Reads without names (`QNAME=*`), missing mates, and
+nonoverlapping observations are kept;
+secondary and supplementary alignments retain their existing treatment.
+
+For a duplicated observation, the first eligible alignment in coordinate order is
+retained; input order breaks ties. Eligibility includes the command's mapping-quality,
+CpG-count, and target-CpG filters. This selection is independent of Read 1/Read 2 priority or base quality.
+
+The observation being deduplicated depends on the measure:
+
+- PDR, MHL, FDRP, and qFDRP: each CpG's contribution from a fragment is counted once.
+- LPMD: each CpG pair's contribution from a fragment is counted once.
+- PM and ME: each exact CpG quartet's contribution from a fragment is counted once.
+
+Full read patterns are preserved for computing read concordance, methylated
+stretches, and unique quartets in partially overlapping mates. Mates are not merged,
+and patterns spanning a gap between them are not inferred. Corrected observations
+can reduce effective depth and cause loci to fall below `--min-depth`. Omit
+`--ignore-overlaps` to reproduce the original alignment-wise counting.
+
+### Native 5mC calls (MM/ML)
+
+The seven measures accept native methylation calls when an alignment has MM/ML
+tags and no Bismark XM tag. Existing XM tags take precedence. No bisulfite
+conversion or additional tagging step is needed:
+
+```
+metheor pm --input native.sorted.bam --output native.pm.tsv
+```
+
+Metheor selects 5mC (`m`, or ChEBI `27551`) and calls it methylated when ML is
+at least 128 (probability at least 0.5). Other modification types are not 5mC.
+Explicit calls without ML remain unknown. The MM `?` mode leaves skipped bases
+unknown; the default and `.` modes treat them as unmodified. Agreeing duplex
+calls count once, and conflicting calls at the same CpG are excluded.
+
+CpG context comes from adjacent reference-aligned bases of the read sequence;
+unaligned bases and contexts spanning a deletion are excluded. Reverse
+alignments, indels, multi-modification groups, and legacy Mm/Ml names are
+supported. Invalid coordinates, ML lengths, and stale MN lengths are rejected.
+
+FDRP and qFDRP retain long reads and compare their shared CpGs without a fixed
+read-length limit. Per-CpG reservoir sampling still uses `--max-depth`; sampled
+loci share read profiles instead of copying an entire read at every CpG.
 
 ### Supported methylation heterogeneity measures
 
@@ -67,16 +128,16 @@ In detail, LPMD is defined as a fraction of CpG pairs within a given range of ge
 Importantly, we note that while there is an increased tendency of observing discordant reads solely by change, according to the definition in PDR, as the sequencing read gets longer, LPMD is not dependent on the length of sequencing reads.
 
 ```
-metheor lpmd --input <INPUT> --output <OUTPUT>
-    --pairs --min-distance <min_distance> --max-distance <max_distance>
-    --min-qual <min_qual> --cpg-set <cpg_set.bed>
+samtools sort -o sample.sorted.bam sample.bam
+metheor lpmd --input sample.sorted.bam --output sample.lpmd.tsv \
+    --pairs sample.pairs.tsv
 ```
 
 *Options*
 
 - `-i, --input`: Path to input BAM file.
 - `-o, --output`: Path to output table file summarizing the result of LPMD calculation.
-- `-p, --pairs`: (Optional) Concordance information for all CpG pairs.
+- `-p, --pairs <PAIRS_TSV>`: Optional path to a separate CpG-pair output table. The filename is required when the option is supplied; omit the whole option for summary output only.
 - `-m, --min-distance`: Minimum distance between CpG pairs to consider. [default: 2]
 - `-M, --max-distance`: Maximum distance between CpG pairs to consider. [default: 16]
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
@@ -89,7 +150,12 @@ By default, it produces a simple tab-delimited table containing genomewide avera
 1. `name`: Filename
 2. `lpmd`: LPMD values averaged for all CpG pairs participating in the analysis
 
-Optionally, when `--pairs` flag is turned on, you can have a more detailed table with CpG pair-wise statistics for LPMD computation. Note that the size of the file can be large. There are six columns:
+Supply coordinate-sorted BAM or SAM alignments for methylation calculations,
+as illustrated above. PDR, MHL, FDRP and qFDRP finalize loci while reading and
+need this order for correct results. Sort by reference coordinate, rather than
+read name; PM, ME and LPMD do not otherwise depend on record order.
+
+Optionally, `--pairs sample.pairs.tsv` writes a separate table with CpG-pair statistics, while `--output` still writes the summary. `--pairs` is an output-path option, not a boolean switch. Note that the pair file can be large. There are six columns:
 
 1. `chrom`: Chromosome where the CpG pair exists
 2. `cpg1`: 0-based position of the cytosine (C) of the first CpG
@@ -137,7 +203,7 @@ Produces a (BedGraph-compatible) tab-separated table with the following four col
 Landan et al., proposed another measure named epipolymorphism (PM), which also captures the amount of heterogeneity of DNA methylation for a given genomic region. The relationship between ME and PM is analogous to that between entropy and Gini index used for decision trees, and they can be considered as similar measures of DNA methylation heterogeneity in general. Using `metheor`, PM can be calculated with the command below:
 ```
 metheor pm --input <input.bam> --output <output.tsv>
-    --min-depth <min-depth> --min-qual <min-qual> --cpg-set <cpg-set.bed>
+    --min-depth <min-depth> --min-qual <min-qual> --cpg-set <cpg-set.bed> [--include-counts]
 ```
 
 *Options*
@@ -150,7 +216,7 @@ metheor pm --input <input.bam> --output <output.tsv>
 
 *Output*
 
-Produces a tab-separated table with the following five columns, where each row corresponds to a CpG quartet of interest (four consecutive CpGs):
+Produces a tab-separated table with the following six columns, where each row corresponds to a CpG quartet of interest (four consecutive CpGs):
 
 1. `chrom`: Chromosome where the CpG quartet exists.
 2. `cpg1`: 0-based position of the cytosine (C) in the first CpG
@@ -158,6 +224,17 @@ Produces a tab-separated table with the following five columns, where each row c
 4. `cpg3`: 0-based position of the cytosine (C) in the third CpG
 5. `cpg4`: 0-based position of the cytosine (C) in the fourth CpG
 6. `pm`: Value of PM
+
+Add `--include-counts` to append 16 integer columns, producing 22 columns without
+a header. Counts are ordered as `0000`, `0001`, ..., `1111`: `0` means
+unmethylated, `1` means methylated, and the first CpG is the leftmost bit.
+They count the eligible observations used for PM after mapping-quality,
+target-CpG, reference-catalogue, and optional overlap filtering. Their sum is the quartet depth used by `--min-depth`.
+Omit the option to retain the existing six-column output.
+
+Quartets are consecutive CpG observations within a read by default. To require
+neighbors in a complete reference CpG catalogue, add `--reference-cpgs genome.cpg.bed`.
+See [reference-adjacent quartets](docs/reference-quartets.md).
 
 *NOTE*: The order of CpG quartets in the output file is not sorted.
 
@@ -189,6 +266,9 @@ Produces a tab-separated table with the following five columns, where each row c
 4. `cpg3`: 0-based position of the cytosine (C) in the third CpG
 5. `cpg4`: 0-based position of the cytosine (C) in the fourth CpG
 6. `me`: Value of ME
+
+The same optional `--reference-cpgs genome.cpg.bed` adjacency rule applies to ME.
+See [reference-adjacent quartets](docs/reference-quartets.md).
 
 *NOTE*: The order of CpG quartets in the output file is not sorted.
 
@@ -265,7 +345,19 @@ Produces a (BedGraph-compatible) tab-separated table with the following four col
 
 **Add bismark `XM` tag to BAM file created with aligners other than bismark**
 ```
-metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
+metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa> --threads 4
+```
+
+Output paths ending in `.bam` produce compressed BAM; other file paths produce
+SAM. A bare relative filename such as `tagged.bam` is supported. Input alignment
+and reference genome files must be different from the output file.
+
+Use `--output -` to stream compressed BAM directly to stdout. Progress messages
+then go to stderr, keeping the stream readable by tools such as samtools:
+
+```sh
+metheor tag --input sample.bam --genome reference.fa --output - \
+    | samtools sort -o tagged.sorted.bam -
 ```
 
 *Options*
@@ -273,6 +365,9 @@ metheor tag --input <INPUT.bam> --output <OUTPUT.bam> --genome <GENOME.fa>
 - `-i, --input`: Path to input BAM file.
 - `-o, --output`: Path to output BAM file tagged with XM tag.
 - `-g, --genome`: Path to genome fasta file.
+- `--threads`: Positive number of CPU workers calculating XM tags. [default: 1]
+
+Tagging accepts SAM or BAM input. Output is BAM for paths ending in `.bam` and SAM otherwise. Multiple workers share the reference genome and process bounded batches, preserving input record order, headers, and XM calls. Input reading and output writing remain serial; the worker count does not enable BAM compression threads. The default streams one record at a time.
 
 Tagging follows CIGAR query/reference consumption:
 

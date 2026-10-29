@@ -123,3 +123,109 @@ fn xm_strand_and_clipped_padding_follow_single_and_paired_end_orientation() {
         );
     }
 }
+
+#[test]
+fn thread_counts_preserve_all_records_and_headers_across_sam_bam_and_batches() {
+    let w = Workspace::new();
+    let reference = reference(&w);
+    let header = "@HD\tVN:1.6\tSO:coordinate\n@SQ\tSN:chr1\tLN:20\n@RG\tID:sample\tSM:test\n@CO\tkeep this comment\n";
+    let mut source = header.to_owned();
+    let mut expected = header.to_owned();
+    for i in 0..4103 {
+        let (flags, cigar, seq, xm) = match i % 4 {
+            0 => (0, "4M", "CGCG", "Z.Z."),
+            1 => (0, "2S4M", "AACGCG", "..Z.Z."),
+            2 => (0, "2M2I2M", "CGAACG", "Z...Z."),
+            _ => (16, "2S4M2S", "AACGCGAA", "...Z.Z.."),
+        };
+        let record = format!("r{i}\t{flags}\tchr1\t1\t60\t{cigar}\t*\t0\t0\t{seq}\t*\tRG:Z:sample");
+        source.push_str(&format!("{record}\n"));
+        expected.push_str(&format!("{record}\tXM:Z:{xm}\n"));
+    }
+    let input_sam = w.write("input.sam", &source);
+    let input_bam = w.path("input.bam");
+    let mut reader = bam::Reader::from_path(&input_sam).unwrap();
+    let mut writer = bam::Writer::from_path(
+        &input_bam,
+        &bam::Header::from_template(reader.header()),
+        bam::Format::Bam,
+    )
+    .unwrap();
+    for record in reader.records() {
+        writer.write(&record.unwrap()).unwrap();
+    }
+    drop(writer);
+    let mut expected_reader = bam::Reader::from_path(w.write("expected.sam", &expected)).unwrap();
+    let expected_records: Vec<_> = expected_reader.records().map(Result::unwrap).collect();
+
+    for input in [input_sam, input_bam] {
+        for extension in ["sam", "bam"] {
+            for threads in [None, Some("1"), Some("3")] {
+                let output = w.path(&format!("output.{extension}"));
+                let mut cmd = assert_cmd::Command::cargo_bin("metheor").unwrap();
+                cmd.arg("tag")
+                    .arg("-i")
+                    .arg(&input)
+                    .arg("-o")
+                    .arg(&output)
+                    .arg("-g")
+                    .arg(&reference);
+                if let Some(count) = threads {
+                    cmd.args(["--threads", count]);
+                }
+                cmd.assert().success();
+                let mut reader = bam::Reader::from_path(&output).unwrap();
+                assert_eq!(reader.header().as_bytes(), header.as_bytes());
+                let records: Vec<_> = reader.records().map(Result::unwrap).collect();
+                assert_eq!(records, expected_records);
+                if extension == "sam" {
+                    assert_eq!(fs::read_to_string(&output).unwrap(), expected);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn invalid_thread_counts_are_rejected_before_touching_output() {
+    let w = Workspace::new();
+    let input = input(&w, 0, "4M", "CGCG");
+    let reference = reference(&w);
+    let output = w.write("output.tsv", "previous successful result\n");
+    for count in ["0", "-1", "many", "18446744073709551616"] {
+        w.command("tag", &input, &["-g", reference.to_str().unwrap()])
+            .arg(format!("--threads={count}"))
+            .assert()
+            .code(2)
+            .stderr(predicates::str::contains("--threads"));
+        assert_eq!(
+            fs::read_to_string(&output).unwrap(),
+            "previous successful result\n"
+        );
+    }
+}
+
+#[test]
+fn parallel_tagging_handles_empty_input_and_more_workers_than_records() {
+    for count in [0, 1, 2] {
+        let w = Workspace::new();
+        let reference = reference(&w);
+        let header = "@HD\tVN:1.6\tSO:coordinate\n@SQ\tSN:chr1\tLN:20\n";
+        let mut source = header.to_owned();
+        let mut expected = header.to_owned();
+        for i in 0..count {
+            let record = format!("r{i}\t0\tchr1\t1\t60\t4M\t*\t0\t0\tCGCG\t*");
+            source.push_str(&format!("{record}\n"));
+            expected.push_str(&format!("{record}\tXM:Z:Z.Z.\n"));
+        }
+        let input = w.write("input.sam", &source);
+        w.command(
+            "tag",
+            &input,
+            &["-g", reference.to_str().unwrap(), "--threads", "4"],
+        )
+        .assert()
+        .success();
+        assert_eq!(fs::read_to_string(w.path("output.tsv")).unwrap(), expected);
+    }
+}

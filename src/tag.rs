@@ -7,10 +7,12 @@ use rust_htslib::{
 };
 use std::cmp::{max, min};
 use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use std::str;
 
-use crate::bamutil;
+use crate::{alignmentwriter::AlignmentWriter, bamutil};
 
 fn need_reverse_complement(read: &Record) -> bool {
     !((!read.is_reverse() && read.is_first_in_template())
@@ -405,7 +407,7 @@ pub fn determine_xm_tag_string(
     )
 }
 
-pub fn run(input: &str, output: &str, genome: &str) {
+pub fn run(input: &str, output: &str, genome: &str, threads: usize) {
     let mut reader = bamutil::get_reader(input);
     let is_paired_end = bamutil::is_paired_end(input);
     let header = bamutil::get_header(&reader);
@@ -414,14 +416,36 @@ pub fn run(input: &str, output: &str, genome: &str) {
     let rcmapping = get_rcmapping();
 
     // Assert if the output directory exists.
+    let to_stdout = output == "-";
     let path = PathBuf::from(&output);
     let dir = path.parent().unwrap();
 
-    if !dir.is_dir() {
+    if !to_stdout && !dir.as_os_str().is_empty() && !dir.is_dir() {
         panic!(
             "No such directory for output alignment file: {}",
             dir.to_str().unwrap()
         )
+    }
+    if !to_stdout {
+        for source in [input, genome] {
+            #[cfg(unix)]
+            let same_file = std::fs::metadata(source)
+                .ok()
+                .zip(std::fs::metadata(output).ok())
+                .is_some_and(|(source, destination)| {
+                    source.dev() == destination.dev() && source.ino() == destination.ino()
+                });
+            // shortcut: canonical paths miss non-Unix hard links; use file identities when those platforms are supported.
+            #[cfg(not(unix))]
+            let same_file = std::fs::canonicalize(source)
+                .ok()
+                .zip(std::fs::canonicalize(output).ok())
+                .is_some_and(|(source, destination)| source == destination);
+            assert!(
+                !same_file,
+                "Output alignment must be different from the input alignment and reference genome"
+            );
+        }
     }
     // Prepare reference genome.
     let refgenome_reader = match faidx::Reader::from_path(genome) {
@@ -430,7 +454,11 @@ pub fn run(input: &str, output: &str, genome: &str) {
             panic!("Error opening reference genome file: {}", error);
         }
     };
-    println!("Parsing reference genome...");
+    if to_stdout {
+        eprintln!("Parsing reference genome...");
+    } else {
+        println!("Parsing reference genome...");
+    }
     let mut refgenome: HashMap<usize, Vec<u8>> = HashMap::new();
     for tid in tid2size.keys() {
         let ref_array = refgenome_reader
@@ -439,35 +467,55 @@ pub fn run(input: &str, output: &str, genome: &str) {
 
         refgenome.insert(*tid, ref_array);
     }
-    println!("Done!");
+    if to_stdout {
+        eprintln!("Done!");
+    } else {
+        println!("Done!");
+    }
 
     // Prepare output writer.
     let header_tmpl = get_header_template_from_bam(input);
-    let format = if output.ends_with(".bam") {
-        bam::Format::Bam
-    } else {
-        bam::Format::Sam
-    };
-    let mut writer = match bam::Writer::from_path(output, &header_tmpl, format) {
-        Ok(writer) => writer,
-        Err(error) => panic!("Error opening alignment file to write: {}", error),
+    let mut writer =
+        AlignmentWriter::new(output, &header_tmpl, to_stdout || output.ends_with(".bam"))
+            .expect("Error opening alignment file to write");
+
+    let tag_record = |r: &mut Record| {
+        let xm_tag_string =
+            determine_xm_tag_string(r, &refgenome, &tid2size, &rcmapping, is_paired_end);
+        r.push_aux(b"XM", Aux::String(&xm_tag_string))
+            .unwrap_or_else(|e| panic!("Error adding XM tag to alignment record. {}", e));
     };
 
-    // Main loop
-    // Iterate aligned reads and determine xm tag string.
-    for mut r in reader.records().map(|r| r.unwrap()) {
-        // Determine XM tag string by comparing read sequence and reference sequence.
-        let xm_tag_string =
-            determine_xm_tag_string(&r, &refgenome, &tid2size, &rcmapping, is_paired_end);
-        // Attach XM tag to the record.
-        let add_result = r.push_aux("XM".as_bytes(), Aux::String(&xm_tag_string));
-        match add_result {
-            Ok(_) => (),
-            Err(e) => panic!("Error adding XM tag to alignment record. {}", e),
+    if threads == 1 {
+        for mut r in reader.records().map(|r| r.unwrap()) {
+            tag_record(&mut r);
+            writer.write(&r).expect("Error writing to output file.");
         }
-        // Write record to output.
-        writer.write(&r).expect("Error writing to output file.");
+    } else {
+        let mut records = reader.records();
+        loop {
+            // Bound record buffering independently of the requested worker count.
+            let mut batch: Vec<_> = records.by_ref().take(4096).map(|r| r.unwrap()).collect();
+            if batch.is_empty() {
+                break;
+            }
+            let chunk_size = batch.len().div_ceil(threads);
+            let tag_record = &tag_record;
+            std::thread::scope(|scope| {
+                for chunk in batch.chunks_mut(chunk_size) {
+                    scope.spawn(move || {
+                        for r in chunk {
+                            tag_record(r);
+                        }
+                    });
+                }
+            });
+            for r in batch {
+                writer.write(&r).expect("Error writing to output file.");
+            }
+        }
     }
+    writer.finish().expect("Error finalizing alignment output");
 }
 
 #[cfg(test)]
@@ -486,6 +534,7 @@ mod tests {
             "tests/test1.bam",
             "tests/no_such_directory/out.bam",
             "tests/tinyref.fa",
+            1,
         )
     }
     #[test]
@@ -495,6 +544,7 @@ mod tests {
             "tests/test1.bam",
             "tests/out.tagged.bam",
             "tests/there_is_no_such.fa",
+            1,
         )
     }
 }
