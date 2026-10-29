@@ -240,7 +240,7 @@ fn bam_and_sam_inputs_produce_identical_metric_results() {
 #[test]
 fn invalid_xm_is_rejected_before_replacing_an_existing_result() {
     for metric in METRICS {
-        for tag in ["", "\tXM:i:3", "\tXM:Z:Z."] {
+        for tag in ["\tXM:i:3", "\tXM:Z:Z."] {
             let w = Workspace::new();
             let input = w.sam(&format!("r\t0\tchr1\t101\t60\t4M\t*\t0\t0\tCGCG\t*{tag}\n"));
             let output = w.write("output.tsv", "previous result\n");

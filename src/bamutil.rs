@@ -10,6 +10,52 @@ pub fn get_reader(input: &str) -> bam::Reader {
     }
 }
 
+pub fn methylation_records(
+    reader: &mut bam::Reader,
+    require_sorted: bool,
+) -> impl Iterator<Item = bam::Record> + '_ {
+    let mut records = reader.records();
+    let mut previous = None;
+    let mut unmapped = 0u64;
+    let mut untagged = 0u64;
+    let mut finished = false;
+    std::iter::from_fn(move || {
+        if finished {
+            return None;
+        }
+        for record in records.by_ref() {
+            let record = record.expect("Error reading alignment record");
+            if record.is_unmapped() {
+                unmapped += 1;
+                continue;
+            }
+            let mut tagged = false;
+            for field in record.aux_iter() {
+                let (tag, _) = field.expect("Error parsing alignment auxiliary fields");
+                tagged |= matches!(tag, b"XM" | b"MM" | b"Mm");
+            }
+            if !tagged {
+                untagged += 1;
+                continue;
+            }
+            if require_sorted {
+                let position = (record.tid(), record.pos());
+                assert!(
+                    previous.is_none_or(|previous| previous <= position),
+                    "Input alignments must be coordinate-sorted; run samtools sort before metheor"
+                );
+                previous = Some(position);
+            }
+            return Some(record);
+        }
+        finished = true;
+        if unmapped > 0 || untagged > 0 {
+            eprintln!("Skipped {unmapped} unmapped alignment(s) and {untagged} mapped alignment(s) without methylation tags.");
+        }
+        None
+    })
+}
+
 pub fn get_header(reader: &bam::Reader) -> bam::HeaderView {
     bam::HeaderView::from_header(&bam::Header::from_template(reader.header()))
 }
