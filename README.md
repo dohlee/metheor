@@ -128,16 +128,16 @@ In detail, LPMD is defined as a fraction of CpG pairs within a given range of ge
 Importantly, we note that while there is an increased tendency of observing discordant reads solely by change, according to the definition in PDR, as the sequencing read gets longer, LPMD is not dependent on the length of sequencing reads.
 
 ```
-metheor lpmd --input <INPUT> --output <OUTPUT>
-    --pairs --min-distance <min_distance> --max-distance <max_distance>
-    --min-qual <min_qual> --cpg-set <cpg_set.bed>
+samtools sort -o sample.sorted.bam sample.bam
+metheor lpmd --input sample.sorted.bam --output sample.lpmd.tsv \
+    --pairs sample.pairs.tsv
 ```
 
 *Options*
 
 - `-i, --input`: Path to input BAM file.
 - `-o, --output`: Path to output table file summarizing the result of LPMD calculation.
-- `-p, --pairs`: (Optional) Concordance information for all CpG pairs.
+- `-p, --pairs <PAIRS_TSV>`: Optional path to a separate CpG-pair output table. The filename is required when the option is supplied; omit the whole option for summary output only.
 - `-m, --min-distance`: Minimum distance between CpG pairs to consider. [default: 2]
 - `-M, --max-distance`: Maximum distance between CpG pairs to consider. [default: 16]
 - `-q, --min-qual`: Minimum quality for a read to be considered. [default: 10]
@@ -150,7 +150,12 @@ By default, it produces a simple tab-delimited table containing genomewide avera
 1. `name`: Filename
 2. `lpmd`: LPMD values averaged for all CpG pairs participating in the analysis
 
-Optionally, when `--pairs` flag is turned on, you can have a more detailed table with CpG pair-wise statistics for LPMD computation. Note that the size of the file can be large. There are six columns:
+Supply coordinate-sorted BAM or SAM alignments for methylation calculations,
+as illustrated above. PDR, MHL, FDRP and qFDRP finalize loci while reading and
+need this order for correct results. Sort by reference coordinate, rather than
+read name; PM, ME and LPMD do not otherwise depend on record order.
+
+Optionally, `--pairs sample.pairs.tsv` writes a separate table with CpG-pair statistics, while `--output` still writes the summary. `--pairs` is an output-path option, not a boolean switch. Note that the pair file can be large. There are six columns:
 
 1. `chrom`: Chromosome where the CpG pair exists
 2. `cpg1`: 0-based position of the cytosine (C) of the first CpG

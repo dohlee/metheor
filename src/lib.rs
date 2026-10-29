@@ -224,8 +224,14 @@ pub enum Commands {
         #[clap(long, short = 'o', required = true, display_order = 2)]
         output: String,
 
-        /// (Optional) Concordance information for all CpG pairs.
-        #[clap(long, short = 'p', required = false, display_order = 3)]
+        /// Optional output path for CpG-pair statistics (e.g. --pairs sample.pairs.tsv).
+        #[clap(
+            long,
+            short = 'p',
+            value_name = "PAIRS_TSV",
+            required = false,
+            display_order = 3
+        )]
         pairs: Option<String>,
 
         /// Minimum distance between CpG pairs to consider.
