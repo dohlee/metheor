@@ -5,7 +5,7 @@ use std::fs;
 use std::io::Write;
 use std::str;
 
-use crate::{bamutil, progressbar, readutil};
+use crate::{bamutil, overlap, progressbar, readutil};
 
 #[derive(Eq)]
 struct PDRResult {
@@ -85,11 +85,19 @@ pub fn compute(
     min_cpgs: usize,
     min_qual: u8,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) {
     let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
-    let result = compute_helper(input, min_depth, min_cpgs, min_qual, cpg_set);
+    let result = compute_helper(
+        input,
+        min_depth,
+        min_cpgs,
+        min_qual,
+        cpg_set,
+        ignore_overlaps,
+    );
 
     let mut out = fs::OpenOptions::new()
         .create(true)
@@ -121,6 +129,7 @@ pub fn compute_helper(
     min_cpgs: usize,
     min_qual: u8,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) -> BTreeMap<readutil::CpGPosition, (f32, u32, u32)> {
     let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
@@ -134,6 +143,7 @@ pub fn compute_helper(
 
     let mut result: BTreeMap<readutil::CpGPosition, (f32, u32, u32)> = BTreeMap::new();
     let bar = progressbar::ProgressBar::new();
+    let mut overlaps = overlap::OverlapTracker::new(ignore_overlaps);
 
     for r in bamutil::methylation_records(&mut reader, true) {
         let mut br = readutil::BismarkRead::new(&r);
@@ -154,6 +164,8 @@ pub fn compute_helper(
         if br.get_first_cpg_position().is_none() {
             continue;
         } // Read filtering: Ignore reads without CpGs.
+
+        let duplicates = overlaps.observe(&r, &br, &cpg_positions);
 
         // Reverse-strand CpGs can begin one base before the next alignment.
         let read_start = readutil::CpGPosition::new(r.tid(), r.pos() as i32);
@@ -176,6 +188,9 @@ pub fn compute_helper(
         });
 
         for cpg_position in cpg_positions.iter_mut() {
+            if duplicates.cpgs.contains(cpg_position) {
+                continue;
+            }
             let r = cpg2reads
                 .entry(*cpg_position)
                 .or_insert(PDRResult::new(*cpg_position));
@@ -225,7 +240,7 @@ mod tests {
         let target_n_concordant = [2; 4];
         let target_n_discordant = [14; 4];
 
-        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set, false);
 
         assert_eq!(result.len(), 4);
         for (i, (_, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
@@ -247,7 +262,7 @@ mod tests {
         let target_n_concordant = [16; 4];
         let target_n_discordant = [0; 4];
 
-        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set, false);
 
         assert_eq!(result.len(), 4);
         for (i, (_, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
@@ -270,7 +285,7 @@ mod tests {
         let target_n_concordant = [2; 4];
         let target_n_discordant = [0; 4];
 
-        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set, false);
 
         assert_eq!(result.len(), 4);
         for (i, (_, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
@@ -295,7 +310,7 @@ mod tests {
         let target_n_concordant = [2; 8];
         let target_n_discordant = [14; 8];
 
-        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set, false);
 
         assert_eq!(result.len(), 8);
         for (i, (_, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
@@ -315,7 +330,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set, false);
 
         assert_eq!(result.len(), 0);
     }
@@ -336,7 +351,7 @@ mod tests {
         let target_n_concordant = [16; 2];
         let target_n_discordant = [0; 2];
 
-        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set, false);
 
         assert_eq!(result.len(), 2);
         for (i, (_, (pdr, n_concordant, n_discordant))) in result.iter().enumerate() {
@@ -358,7 +373,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set);
+        let result = compute_helper(input, min_depth, min_cpgs, min_qual, &cpg_set, false);
         assert_eq!(result.len(), 0); // No CpGs participate in the PDR calculation.
     }
 }

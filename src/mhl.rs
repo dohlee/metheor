@@ -7,7 +7,7 @@ use std::io::Write;
 use std::str;
 use std::vec::Vec;
 
-use crate::{bamutil, progressbar, readutil};
+use crate::{bamutil, overlap, progressbar, readutil};
 
 #[derive(Eq)]
 struct AssociatedReads {
@@ -106,11 +106,19 @@ pub fn compute(
     min_cpgs: usize,
     min_qual: u8,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) {
     let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
-    let result = compute_helper(input, min_depth, min_cpgs, min_qual, cpg_set);
+    let result = compute_helper(
+        input,
+        min_depth,
+        min_cpgs,
+        min_qual,
+        cpg_set,
+        ignore_overlaps,
+    );
 
     let mut out = fs::OpenOptions::new()
         .create(true)
@@ -139,6 +147,7 @@ pub fn compute_helper(
     min_cpgs: usize,
     min_qual: u8,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) -> BTreeMap<readutil::CpGPosition, f32> {
     let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
@@ -152,6 +161,7 @@ pub fn compute_helper(
     let mut valid_readcount = 0;
 
     let bar = progressbar::ProgressBar::new();
+    let mut overlaps = overlap::OverlapTracker::new(ignore_overlaps);
 
     for r in bamutil::methylation_records(&mut reader, true) {
         let mut br = readutil::BismarkRead::new(&r);
@@ -183,7 +193,12 @@ pub fn compute_helper(
             continue;
         } // Read filtering: Ignore reads with few CpGs.
 
+        let duplicates = overlaps.observe(&r, &br, &cpg_positions);
+
         for cpg_position in cpg_positions.iter_mut() {
+            if duplicates.cpgs.contains(cpg_position) {
+                continue;
+            }
             let r = cpg2reads
                 .entry(*cpg_position)
                 .or_insert(AssociatedReads::new(*cpg_position));

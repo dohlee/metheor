@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 
 pub mod bamutil;
 pub mod lpmd;
+pub(crate) mod overlap;
 pub mod progressbar;
 pub mod readutil;
 
@@ -49,6 +50,10 @@ pub enum Commands {
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
         #[clap(long, short = 'c', required = false, display_order = 6)]
         cpg_set: Option<String>,
+
+        /// Count overlapping paired-end observations only once per fragment.
+        #[clap(long)]
+        ignore_overlaps: bool,
     },
     /// Compute epipolymorphism.
     #[clap(arg_required_else_help = true)]
@@ -72,6 +77,10 @@ pub enum Commands {
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
         #[clap(long, short = 'c', required = false, display_order = 5)]
         cpg_set: Option<String>,
+
+        /// Count overlapping paired-end observations only once per fragment.
+        #[clap(long)]
+        ignore_overlaps: bool,
     },
     /// Compute methylation entropy.
     #[clap(arg_required_else_help = true)]
@@ -95,6 +104,10 @@ pub enum Commands {
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
         #[clap(long, short = 'c', required = false, display_order = 5)]
         cpg_set: Option<String>,
+
+        /// Count overlapping paired-end observations only once per fragment.
+        #[clap(long)]
+        ignore_overlaps: bool,
     },
     /// Compute fraction of discordant read pairs (FDRP).
     #[clap(arg_required_else_help = true)]
@@ -126,6 +139,10 @@ pub enum Commands {
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
         #[clap(long, short = 'c', required = false, display_order = 7)]
         cpg_set: Option<String>,
+
+        /// Count overlapping paired-end observations only once per fragment.
+        #[clap(long)]
+        ignore_overlaps: bool,
     },
     /// Compute quantitative fraction of discordant read pairs (qFDRP).
     #[clap(arg_required_else_help = true)]
@@ -157,6 +174,10 @@ pub enum Commands {
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
         #[clap(long, short = 'c', required = false, display_order = 7)]
         cpg_set: Option<String>,
+
+        /// Count overlapping paired-end observations only once per fragment.
+        #[clap(long)]
+        ignore_overlaps: bool,
     },
     /// Compute methylation haplotype load (MHL).
     #[clap(arg_required_else_help = true)]
@@ -184,6 +205,10 @@ pub enum Commands {
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
         #[clap(long, short = 'c', required = false, display_order = 6)]
         cpg_set: Option<String>,
+
+        /// Count overlapping paired-end observations only once per fragment.
+        #[clap(long)]
+        ignore_overlaps: bool,
     },
     /// Compute local pairwise methylation discordance (LPMD).
     #[clap(arg_required_else_help = true)]
@@ -215,6 +240,10 @@ pub enum Commands {
         /// (Optional) Specify a predefined set of CpGs (in BED file) to be analyzed.
         #[clap(long, short = 'c', required = false, display_order = 7)]
         cpg_set: Option<String>,
+
+        /// Count overlapping paired-end observations only once per fragment.
+        #[clap(long)]
+        ignore_overlaps: bool,
     },
     /// Add bismark XM tag to BAM file.
     #[clap(arg_required_else_help = true)]
@@ -227,5 +256,9 @@ pub enum Commands {
 
         #[clap(long, short = 'g', required = true, display_order = 3)]
         genome: String,
+
+        /// Number of CPU workers calculating XM tags (input/output remain serial).
+        #[clap(long, default_value = "1", display_order = 4)]
+        threads: std::num::NonZeroUsize,
     },
 }
