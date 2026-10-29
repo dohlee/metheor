@@ -6,10 +6,13 @@ mod fdrp;
 mod lpmd;
 mod me;
 mod mhl;
+mod overlap;
+mod pairwise;
 mod pdr;
 mod pm;
 mod progressbar;
 mod qfdrp;
+mod quartetcatalog;
 mod readutil;
 mod tag;
 
@@ -24,8 +27,17 @@ fn main() {
             min_cpgs,
             min_qual,
             cpg_set,
+            ignore_overlaps,
         } => {
-            pdr::compute(input, output, *min_depth, *min_cpgs, *min_qual, cpg_set);
+            pdr::compute(
+                input,
+                output,
+                *min_depth,
+                *min_cpgs,
+                *min_qual,
+                cpg_set,
+                *ignore_overlaps,
+            );
         }
         metheor::Commands::Pm {
             input,
@@ -33,8 +45,20 @@ fn main() {
             min_depth,
             min_qual,
             cpg_set,
+            ignore_overlaps,
+            include_counts,
+            reference_cpgs,
         } => {
-            pm::compute(input, output, *min_depth, *min_qual, cpg_set);
+            pm::compute(
+                input,
+                output,
+                *min_depth,
+                *min_qual,
+                cpg_set,
+                *ignore_overlaps,
+                *include_counts,
+                reference_cpgs,
+            );
         }
         metheor::Commands::Me {
             input,
@@ -42,8 +66,18 @@ fn main() {
             min_depth,
             min_qual,
             cpg_set,
+            ignore_overlaps,
+            reference_cpgs,
         } => {
-            me::compute(input, output, *min_depth, *min_qual, cpg_set);
+            me::compute(
+                input,
+                output,
+                *min_depth,
+                *min_qual,
+                cpg_set,
+                *ignore_overlaps,
+                reference_cpgs,
+            );
         }
         metheor::Commands::Fdrp {
             input,
@@ -53,6 +87,7 @@ fn main() {
             max_depth,
             min_overlap,
             cpg_set,
+            ignore_overlaps,
         } => {
             fdrp::compute(
                 input,
@@ -62,6 +97,7 @@ fn main() {
                 *max_depth,
                 *min_overlap,
                 cpg_set,
+                *ignore_overlaps,
             );
         }
         metheor::Commands::Qfdrp {
@@ -72,6 +108,7 @@ fn main() {
             max_depth,
             min_overlap,
             cpg_set,
+            ignore_overlaps,
         } => {
             qfdrp::compute(
                 input,
@@ -81,6 +118,7 @@ fn main() {
                 *max_depth,
                 *min_overlap,
                 cpg_set,
+                *ignore_overlaps,
             );
         }
         metheor::Commands::Mhl {
@@ -90,8 +128,17 @@ fn main() {
             min_cpgs,
             min_qual,
             cpg_set,
+            ignore_overlaps,
         } => {
-            mhl::compute(input, output, *min_depth, *min_cpgs, *min_qual, cpg_set);
+            mhl::compute(
+                input,
+                output,
+                *min_depth,
+                *min_cpgs,
+                *min_qual,
+                cpg_set,
+                *ignore_overlaps,
+            );
         }
         metheor::Commands::Lpmd {
             input,
@@ -101,23 +148,38 @@ fn main() {
             max_distance,
             min_qual,
             cpg_set,
+            ignore_overlaps,
         } => {
-            lpmd::compute(
-                input,
-                output,
-                *min_distance,
-                *max_distance,
-                *min_qual,
-                cpg_set,
-                pairs,
-            );
+            if *ignore_overlaps {
+                lpmd::compute_with_overlap_correction(
+                    input,
+                    output,
+                    *min_distance,
+                    *max_distance,
+                    *min_qual,
+                    cpg_set,
+                    pairs,
+                    true,
+                );
+            } else {
+                lpmd::compute(
+                    input,
+                    output,
+                    *min_distance,
+                    *max_distance,
+                    *min_qual,
+                    cpg_set,
+                    pairs,
+                );
+            }
         }
         metheor::Commands::Tag {
             input,
             output,
             genome,
+            threads,
         } => {
-            tag::run(input, output, genome);
+            tag::run(input, output, genome, threads.get());
         }
     }
 }

@@ -7,17 +7,22 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
+use std::sync::Arc;
 
 use crate::bamutil;
 
+#[path = "modtags.rs"]
+mod modtags;
+
 pub type QuartetPattern = usize;
 
+#[derive(Clone)]
 pub struct BismarkRead {
     start_pos: i32,
     end_pos: i32,
     // Read is defined as an array of CpG methylation states
     // and their relative/absolute positions.
-    cpgs: Vec<CpG>,
+    cpgs: Arc<Vec<CpG>>,
 }
 
 impl BismarkRead {
@@ -45,12 +50,17 @@ impl BismarkRead {
                     Self {
                         start_pos,
                         end_pos,
-                        cpgs,
+                        cpgs: Arc::new(cpgs),
                     }
                 } else {
                     panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
                 }
             }
+            Err(_) if r.aux(b"MM").is_ok() || r.aux(b"Mm").is_ok() => Self {
+                start_pos,
+                end_pos,
+                cpgs: Arc::new(modtags::get_cpgs(r)),
+            },
             Err(_) => {
                 panic!("Error reading XM tag in BAM record. Make sure the reads are aligned using Bismark!");
             }
@@ -82,7 +92,7 @@ impl BismarkRead {
 
     pub fn get_cpg_positions(&self) -> Vec<CpGPosition> {
         let mut s: Vec<CpGPosition> = Vec::new();
-        for cpg in &self.cpgs {
+        for cpg in self.cpgs.iter() {
             s.push(cpg.abspos);
         }
 
@@ -96,7 +106,7 @@ impl BismarkRead {
             new_cpgs.push(*cpg);
         }
 
-        self.cpgs = new_cpgs;
+        self.cpgs = Arc::new(new_cpgs);
     }
 
     pub fn get_cpg_quartets_and_patterns(&self) -> (Vec<Quartet>, Vec<QuartetPattern>) {
@@ -140,7 +150,7 @@ impl BismarkRead {
         let init_methylated = self.cpgs[0].methylated;
         let mut res = ReadConcordanceState::Concordant;
 
-        for cpg in &self.cpgs {
+        for cpg in self.cpgs.iter() {
             if cpg.methylated != init_methylated {
                 res = ReadConcordanceState::Discordant;
             }
@@ -153,7 +163,7 @@ impl BismarkRead {
         let mut stretch_info: HashMap<i32, i32> = HashMap::new();
         let mut curr_stretch_length = 0;
 
-        for cpg in &self.cpgs {
+        for cpg in self.cpgs.iter() {
             if cpg.methylated {
                 curr_stretch_length += 1;
                 for l in 1..curr_stretch_length + 1 {
@@ -184,7 +194,7 @@ impl BismarkRead {
         let mut n_concordant = 0;
         let mut n_discordant = 0;
 
-        for cpg in &self.cpgs {
+        for cpg in self.cpgs.iter() {
             if min_anchor_pos != -1 {
                 while (cpg.abspos.pos - min_anchor_pos > max_distance) && !anchors.is_empty() {
                     anchors.remove(0);
