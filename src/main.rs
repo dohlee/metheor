@@ -44,6 +44,7 @@ fn main() {
             min_qual,
             cpg_set,
             ignore_overlaps,
+            include_counts,
         } => {
             pm::compute(
                 input,
@@ -52,6 +53,7 @@ fn main() {
                 *min_qual,
                 cpg_set,
                 *ignore_overlaps,
+                *include_counts,
             );
         }
         metheor::Commands::Me {

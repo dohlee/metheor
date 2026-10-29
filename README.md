@@ -198,7 +198,7 @@ Produces a (BedGraph-compatible) tab-separated table with the following four col
 Landan et al., proposed another measure named epipolymorphism (PM), which also captures the amount of heterogeneity of DNA methylation for a given genomic region. The relationship between ME and PM is analogous to that between entropy and Gini index used for decision trees, and they can be considered as similar measures of DNA methylation heterogeneity in general. Using `metheor`, PM can be calculated with the command below:
 ```
 metheor pm --input <input.bam> --output <output.tsv>
-    --min-depth <min-depth> --min-qual <min-qual> --cpg-set <cpg-set.bed>
+    --min-depth <min-depth> --min-qual <min-qual> --cpg-set <cpg-set.bed> [--include-counts]
 ```
 
 *Options*
@@ -211,7 +211,7 @@ metheor pm --input <input.bam> --output <output.tsv>
 
 *Output*
 
-Produces a tab-separated table with the following five columns, where each row corresponds to a CpG quartet of interest (four consecutive CpGs):
+Produces a tab-separated table with the following six columns, where each row corresponds to a CpG quartet of interest (four consecutive CpGs):
 
 1. `chrom`: Chromosome where the CpG quartet exists.
 2. `cpg1`: 0-based position of the cytosine (C) in the first CpG
@@ -219,6 +219,13 @@ Produces a tab-separated table with the following five columns, where each row c
 4. `cpg3`: 0-based position of the cytosine (C) in the third CpG
 5. `cpg4`: 0-based position of the cytosine (C) in the fourth CpG
 6. `pm`: Value of PM
+
+Add `--include-counts` to append 16 integer columns, producing 22 columns without
+a header. Counts are ordered as `0000`, `0001`, ..., `1111`: `0` means
+unmethylated, `1` means methylated, and the first CpG is the leftmost bit.
+They count the eligible observations used for PM after mapping-quality and
+target-CpG filtering. Their sum is the quartet depth used by `--min-depth`.
+Omit the option to retain the existing six-column output.
 
 *NOTE*: The order of CpG quartets in the output file is not sorted.
 

@@ -81,6 +81,9 @@ pub enum Commands {
         /// Count overlapping paired-end observations only once per fragment.
         #[clap(long)]
         ignore_overlaps: bool,
+        /// Append counts for the 16 epialleles, ordered from 0000 to 1111.
+        #[clap(long)]
+        include_counts: bool,
     },
     /// Compute methylation entropy.
     #[clap(arg_required_else_help = true)]
