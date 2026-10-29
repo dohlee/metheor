@@ -11,6 +11,7 @@ mod pdr;
 mod pm;
 mod progressbar;
 mod qfdrp;
+mod quartetcatalog;
 mod readutil;
 mod tag;
 
@@ -45,6 +46,7 @@ fn main() {
             cpg_set,
             ignore_overlaps,
             include_counts,
+            reference_cpgs,
         } => {
             pm::compute(
                 input,
@@ -54,6 +56,7 @@ fn main() {
                 cpg_set,
                 *ignore_overlaps,
                 *include_counts,
+                reference_cpgs,
             );
         }
         metheor::Commands::Me {
@@ -63,6 +66,7 @@ fn main() {
             min_qual,
             cpg_set,
             ignore_overlaps,
+            reference_cpgs,
         } => {
             me::compute(
                 input,
@@ -71,6 +75,7 @@ fn main() {
                 *min_qual,
                 cpg_set,
                 *ignore_overlaps,
+                reference_cpgs,
             );
         }
         metheor::Commands::Fdrp {

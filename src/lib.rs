@@ -84,6 +84,9 @@ pub enum Commands {
         /// Append counts for the 16 epialleles, ordered from 0000 to 1111.
         #[clap(long)]
         include_counts: bool,
+        /// Require adjacent CpGs in a complete reference CpG BED catalogue.
+        #[clap(long, value_name = "BED")]
+        reference_cpgs: Option<String>,
     },
     /// Compute methylation entropy.
     #[clap(arg_required_else_help = true)]
@@ -111,6 +114,9 @@ pub enum Commands {
         /// Count overlapping paired-end observations only once per fragment.
         #[clap(long)]
         ignore_overlaps: bool,
+        /// Require adjacent CpGs in a complete reference CpG BED catalogue.
+        #[clap(long, value_name = "BED")]
+        reference_cpgs: Option<String>,
     },
     /// Compute fraction of discordant read pairs (FDRP).
     #[clap(arg_required_else_help = true)]

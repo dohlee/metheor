@@ -228,9 +228,13 @@ Produces a tab-separated table with the following six columns, where each row co
 Add `--include-counts` to append 16 integer columns, producing 22 columns without
 a header. Counts are ordered as `0000`, `0001`, ..., `1111`: `0` means
 unmethylated, `1` means methylated, and the first CpG is the leftmost bit.
-They count the eligible observations used for PM after mapping-quality and
-target-CpG filtering. Their sum is the quartet depth used by `--min-depth`.
+They count the eligible observations used for PM after mapping-quality,
+target-CpG, reference-catalogue, and optional overlap filtering. Their sum is the quartet depth used by `--min-depth`.
 Omit the option to retain the existing six-column output.
+
+Quartets are consecutive CpG observations within a read by default. To require
+neighbors in a complete reference CpG catalogue, add `--reference-cpgs genome.cpg.bed`.
+See [reference-adjacent quartets](docs/reference-quartets.md).
 
 *NOTE*: The order of CpG quartets in the output file is not sorted.
 
@@ -262,6 +266,9 @@ Produces a tab-separated table with the following five columns, where each row c
 4. `cpg3`: 0-based position of the cytosine (C) in the third CpG
 5. `cpg4`: 0-based position of the cytosine (C) in the fourth CpG
 6. `me`: Value of ME
+
+The same optional `--reference-cpgs genome.cpg.bed` adjacency rule applies to ME.
+See [reference-adjacent quartets](docs/reference-quartets.md).
 
 *NOTE*: The order of CpG quartets in the output file is not sorted.
 

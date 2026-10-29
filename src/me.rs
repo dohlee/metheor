@@ -4,7 +4,7 @@ use std::fs;
 use std::io::Write;
 use std::str;
 
-use crate::{bamutil, overlap, progressbar, readutil};
+use crate::{bamutil, overlap, progressbar, quartetcatalog::ReferenceCpGs, readutil};
 
 pub struct QuartetStat {
     pos1: readutil::CpGPosition,
@@ -72,11 +72,12 @@ pub fn compute(
     min_qual: u8,
     cpg_set: &Option<String>,
     ignore_overlaps: bool,
+    reference_cpgs: &Option<String>,
 ) {
     let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
-    let result = compute_helper(input, min_qual, cpg_set, ignore_overlaps);
+    let result = compute_helper(input, min_qual, cpg_set, ignore_overlaps, reference_cpgs);
 
     let mut out = fs::OpenOptions::new()
         .create(true)
@@ -99,11 +100,13 @@ pub fn compute_helper(
     min_qual: u8,
     cpg_set: &Option<String>,
     ignore_overlaps: bool,
+    reference_cpgs: &Option<String>,
 ) -> HashMap<readutil::Quartet, QuartetStat> {
     let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
     let target_cpgs = &readutil::get_target_cpgs(cpg_set, &header);
+    let reference = ReferenceCpGs::load(reference_cpgs, &header);
     let mut quartet2stat: HashMap<readutil::Quartet, QuartetStat> = HashMap::new();
 
     let mut readcount = 0;
@@ -133,7 +136,11 @@ pub fn compute_helper(
         };
         let (quartets, patterns) = br.get_cpg_quartets_and_patterns();
         for (q, p) in quartets.iter().zip(patterns.iter()) {
-            if duplicates.quartets.contains(q) {
+            if duplicates.quartets.contains(q)
+                || reference
+                    .as_ref()
+                    .is_some_and(|catalogue| !catalogue.contains(q))
+            {
                 continue;
             }
             let stat = quartet2stat.entry(*q).or_insert(QuartetStat::new(*q));
@@ -158,7 +165,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false, &None);
 
         assert_eq!(quartet2stat.len(), 1);
 
@@ -174,7 +181,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false, &None);
 
         assert_eq!(quartet2stat.len(), 1);
 
@@ -188,7 +195,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false, &None);
 
         assert_eq!(quartet2stat.len(), 1);
 
@@ -202,7 +209,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false, &None);
 
         assert_eq!(quartet2stat.len(), 2);
 
@@ -218,7 +225,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false, &None);
 
         assert_eq!(quartet2stat.len(), 0);
     }
