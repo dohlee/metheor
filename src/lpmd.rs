@@ -1,15 +1,15 @@
-use rust_htslib::{bam, bam::Read};
+use rust_htslib::bam;
 use std::{collections::HashMap, fs};
 use std::{io::Write, str, vec::Vec};
 
-use crate::{bamutil, progressbar, readutil};
+use crate::{bamutil, overlap, progressbar, readutil};
 
 pub struct LPMDResult {
     header: bam::HeaderView,
     n_read: i32,
     n_valid_read: i32,
-    n_concordant: i32,
-    n_discordant: i32,
+    n_concordant: i64,
+    n_discordant: i64,
     pair2n_concordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32>,
     pair2n_discordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32>,
 }
@@ -41,11 +41,11 @@ impl LPMDResult {
     }
 
     fn inc_n_concordant(&mut self, i: i32) {
-        self.n_concordant += i;
+        self.n_concordant += i64::from(i);
     }
 
     fn inc_n_discordant(&mut self, i: i32) {
-        self.n_discordant += i;
+        self.n_discordant += i64::from(i);
     }
 
     fn compute_lpmd(&self) -> f32 {
@@ -131,11 +131,41 @@ pub fn compute(
     cpg_set: &Option<String>,
     pairs: &Option<String>,
 ) {
+    compute_with_overlap_correction(
+        input,
+        output,
+        min_distance,
+        max_distance,
+        min_qual,
+        cpg_set,
+        pairs,
+        false,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn compute_with_overlap_correction(
+    input: &str,
+    output: &str,
+    min_distance: i32,
+    max_distance: i32,
+    min_qual: u8,
+    cpg_set: &Option<String>,
+    pairs: &Option<String>,
+    ignore_overlaps: bool,
+) {
     assert!(
         0 <= min_distance && min_distance <= max_distance,
         "Invalid CpG distance range: require 0 <= min-distance <= max-distance."
     );
-    let result = compute_helper(input, min_distance, max_distance, min_qual, cpg_set);
+    let result = compute_helper(
+        input,
+        min_distance,
+        max_distance,
+        min_qual,
+        cpg_set,
+        ignore_overlaps,
+    );
     let lpmd = result.compute_lpmd();
 
     let mut out = fs::OpenOptions::new()
@@ -161,6 +191,7 @@ fn compute_helper(
     max_distance: i32,
     min_qual: u8,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) -> LPMDResult {
     eprintln!(
         "Computing subset-LPMD with parameters input={}, min_distance={}, max_distance={}",
@@ -174,9 +205,10 @@ fn compute_helper(
 
     let mut res = LPMDResult::new(header);
     let bar = progressbar::ProgressBar::new();
+    let mut overlaps = overlap::OverlapTracker::new(ignore_overlaps);
 
     // Iterate over reads and compute LPMD.
-    for r in reader.records().map(|r| r.unwrap()) {
+    for r in bamutil::methylation_records(&mut reader, false) {
         res.inc_n_read(1);
         if r.mapq() < min_qual {
             continue;
@@ -187,8 +219,27 @@ fn compute_helper(
             br.filter_isin(target_cpgs);
         }
 
-        let (c, d, pair2concordance) =
+        let duplicates = if ignore_overlaps {
+            overlaps.observe(&r, &br, &br.get_cpg_positions())
+        } else {
+            overlap::Observations::default()
+        };
+        let (mut c, mut d, mut pair2concordance) =
             br.compute_pairwise_cpg_concordance_discordance(min_distance, max_distance);
+
+        if ignore_overlaps {
+            pair2concordance.retain(|(a, b, state)| {
+                if duplicates.cpgs.contains(a) && duplicates.cpgs.contains(b) {
+                    match state {
+                        readutil::ReadConcordanceState::Concordant => c -= 1,
+                        readutil::ReadConcordanceState::Discordant => d -= 1,
+                    }
+                    false
+                } else {
+                    true
+                }
+            });
+        }
 
         res.inc_n_valid_read(1);
         res.inc_n_concordant(c);
@@ -218,7 +269,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set, false);
 
         assert_eq!(result.compute_lpmd(), 0.5);
     }
@@ -230,7 +281,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set, false);
 
         assert_eq!(result.compute_lpmd(), 0.0);
     }
@@ -242,7 +293,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set, false);
 
         assert_eq!(result.compute_lpmd(), 0.0);
     }
@@ -254,7 +305,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set, false);
 
         assert_eq!(result.compute_lpmd(), 0.5);
     }
@@ -267,7 +318,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set);
+        let result = compute_helper(input, min_distance, max_distance, min_qual, &cpg_set, false);
 
         assert!(result.compute_lpmd().is_nan());
     }

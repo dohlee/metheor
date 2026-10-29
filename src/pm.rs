@@ -1,10 +1,10 @@
-use rust_htslib::{bam, bam::Read};
+use rust_htslib::bam;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::str;
 
-use crate::{bamutil, progressbar, readutil};
+use crate::{bamutil, overlap, progressbar, readutil};
 
 pub struct PMResult {
     pos1: readutil::CpGPosition,
@@ -60,11 +60,19 @@ impl PMResult {
     }
 }
 
-pub fn compute(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set: &Option<String>) {
+pub fn compute(
+    input: &str,
+    output: &str,
+    min_depth: u32,
+    min_qual: u8,
+    cpg_set: &Option<String>,
+    ignore_overlaps: bool,
+    include_counts: bool,
+) {
     let reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
 
-    let result = compute_helper(input, min_qual, cpg_set);
+    let result = compute_helper(input, min_qual, cpg_set, ignore_overlaps);
 
     let mut out = fs::OpenOptions::new()
         .create(true)
@@ -77,8 +85,14 @@ pub fn compute(input: &str, output: &str, min_depth: u32, min_qual: u8, cpg_set:
         if stat.get_read_depth() < min_depth {
             continue;
         }
-        writeln!(out, "{}", stat.to_bedgraph_field(&header))
-            .expect("Error writing to output file.");
+        let mut row = stat.to_bedgraph_field(&header);
+        if include_counts {
+            for count in stat.quartet_pattern_counts {
+                row.push('\t');
+                row.push_str(&count.to_string());
+            }
+        }
+        writeln!(out, "{}", row).expect("Error writing to output file.");
     }
 }
 
@@ -86,6 +100,7 @@ pub fn compute_helper(
     input: &str,
     min_qual: u8,
     cpg_set: &Option<String>,
+    ignore_overlaps: bool,
 ) -> HashMap<readutil::Quartet, PMResult> {
     let mut reader = bamutil::get_reader(input);
     let header = bamutil::get_header(&reader);
@@ -98,8 +113,9 @@ pub fn compute_helper(
     let mut valid_readcount = 0;
 
     let bar = progressbar::ProgressBar::new();
+    let mut overlaps = overlap::OverlapTracker::new(ignore_overlaps);
 
-    for r in reader.records().map(|r| r.unwrap()) {
+    for r in bamutil::methylation_records(&mut reader, false) {
         let mut br = readutil::BismarkRead::new(&r);
 
         if let Some(target_cpgs) = target_cpgs {
@@ -113,8 +129,16 @@ pub fn compute_helper(
         }
         valid_readcount += 1;
 
+        let duplicates = if ignore_overlaps {
+            overlaps.observe(&r, &br, &br.get_cpg_positions())
+        } else {
+            overlap::Observations::default()
+        };
         let (quartets, patterns) = br.get_cpg_quartets_and_patterns();
         for (q, p) in quartets.iter().zip(patterns.iter()) {
+            if duplicates.quartets.contains(q) {
+                continue;
+            }
             let stat = quartet2stat.entry(*q).or_insert(PMResult::new(*q));
 
             stat.add_quartet_pattern(*p);
@@ -137,7 +161,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
 
         assert_eq!(quartet2stat.len(), 1);
 
@@ -152,7 +176,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
 
         assert_eq!(quartet2stat.len(), 1);
 
@@ -166,7 +190,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
 
         assert_eq!(quartet2stat.len(), 1);
 
@@ -180,7 +204,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
 
         assert_eq!(quartet2stat.len(), 2);
 
@@ -196,7 +220,7 @@ mod tests {
         let min_qual = 10;
         let cpg_set = None;
 
-        let quartet2stat = compute_helper(input, min_qual, &cpg_set);
+        let quartet2stat = compute_helper(input, min_qual, &cpg_set, false);
 
         assert_eq!(quartet2stat.len(), 0);
     }
