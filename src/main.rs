@@ -1,5 +1,6 @@
 use clap::Parser;
 
+mod alignmentwriter;
 mod bamutil;
 mod fdrp;
 mod lpmd;
