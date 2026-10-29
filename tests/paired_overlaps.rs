@@ -268,13 +268,13 @@ fn shared_cpgs_do_not_imply_that_the_same_quartet_was_observed() {
 }
 
 #[test]
-fn rejected_long_read_observations_do_not_mask_a_usable_mate() {
+fn long_read_observations_mask_the_same_cpgs_in_a_shorter_mate() {
     for metric in ["fdrp", "qfdrp"] {
         let w = Workspace::new();
         let long_xm = "Z.Z.Z.Z.".to_owned() + &".".repeat(292);
         let input = w.sam(
             &(paired_record("pair", 99, 101, 101, 60, "300M", &long_xm)
-                + &paired_record("pair", 147, 101, 101, 60, "8M", "Z.Z.Z.Z.")
+                + &paired_record("pair", 147, 101, 101, 60, "8M", "z.z.z.z.")
                 + &record("other", 0, 101, 60, "8M", "z.z.z.z.")),
         );
         w.command(metric, &input, &["-d", "2", "-l", "1", "--ignore-overlaps"])

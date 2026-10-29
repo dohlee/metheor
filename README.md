@@ -40,8 +40,7 @@ secondary and supplementary alignments retain their existing treatment.
 
 For a duplicated observation, the first eligible alignment in coordinate order is
 retained; input order breaks ties. Eligibility includes the command's mapping-quality,
-CpG-count, and target-CpG filters, along with the existing read-span limit for FDRP
-and qFDRP. This selection is independent of Read 1/Read 2 priority or base quality.
+CpG-count, and target-CpG filters. This selection is independent of Read 1/Read 2 priority or base quality.
 
 The observation being deduplicated depends on the measure:
 
@@ -54,6 +53,31 @@ stretches, and unique quartets in partially overlapping mates. Mates are not mer
 and patterns spanning a gap between them are not inferred. Corrected observations
 can reduce effective depth and cause loci to fall below `--min-depth`. Omit
 `--ignore-overlaps` to reproduce the original alignment-wise counting.
+
+### Native 5mC calls (MM/ML)
+
+The seven measures accept native methylation calls when an alignment has MM/ML
+tags and no Bismark XM tag. Existing XM tags take precedence. No bisulfite
+conversion or additional tagging step is needed:
+
+```
+metheor pm --input native.sorted.bam --output native.pm.tsv
+```
+
+Metheor selects 5mC (`m`, or ChEBI `27551`) and calls it methylated when ML is
+at least 128 (probability at least 0.5). Other modification types are not 5mC.
+Explicit calls without ML remain unknown. The MM `?` mode leaves skipped bases
+unknown; the default and `.` modes treat them as unmodified. Agreeing duplex
+calls count once, and conflicting calls at the same CpG are excluded.
+
+CpG context comes from adjacent reference-aligned bases of the read sequence;
+unaligned bases and contexts spanning a deletion are excluded. Reverse
+alignments, indels, multi-modification groups, and legacy Mm/Ml names are
+supported. Invalid coordinates, ML lengths, and stale MN lengths are rejected.
+
+FDRP and qFDRP retain long reads and compare their shared CpGs without a fixed
+read-length limit. Per-CpG reservoir sampling still uses `--max-depth`; sampled
+loci share read profiles instead of copying an entire read at every CpG.
 
 ### Supported methylation heterogeneity measures
 

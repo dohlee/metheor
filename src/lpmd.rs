@@ -8,8 +8,8 @@ pub struct LPMDResult {
     header: bam::HeaderView,
     n_read: i32,
     n_valid_read: i32,
-    n_concordant: i32,
-    n_discordant: i32,
+    n_concordant: i64,
+    n_discordant: i64,
     pair2n_concordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32>,
     pair2n_discordant: HashMap<(readutil::CpGPosition, readutil::CpGPosition), i32>,
 }
@@ -41,11 +41,11 @@ impl LPMDResult {
     }
 
     fn inc_n_concordant(&mut self, i: i32) {
-        self.n_concordant += i;
+        self.n_concordant += i64::from(i);
     }
 
     fn inc_n_discordant(&mut self, i: i32) {
-        self.n_discordant += i;
+        self.n_discordant += i64::from(i);
     }
 
     fn compute_lpmd(&self) -> f32 {
