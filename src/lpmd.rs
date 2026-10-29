@@ -1,4 +1,4 @@
-use rust_htslib::{bam, bam::Read};
+use rust_htslib::bam;
 use std::{collections::HashMap, fs};
 use std::{io::Write, str, vec::Vec};
 
@@ -208,7 +208,7 @@ fn compute_helper(
     let mut overlaps = overlap::OverlapTracker::new(ignore_overlaps);
 
     // Iterate over reads and compute LPMD.
-    for r in reader.records().map(|r| r.unwrap()) {
+    for r in bamutil::methylation_records(&mut reader, false) {
         res.inc_n_read(1);
         if r.mapq() < min_qual {
             continue;

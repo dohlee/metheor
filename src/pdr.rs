@@ -1,4 +1,3 @@
-use rust_htslib::bam::Read;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
@@ -146,7 +145,7 @@ pub fn compute_helper(
     let bar = progressbar::ProgressBar::new();
     let mut overlaps = overlap::OverlapTracker::new(ignore_overlaps);
 
-    for r in reader.records().map(|r| r.unwrap()) {
+    for r in bamutil::methylation_records(&mut reader, true) {
         let mut br = readutil::BismarkRead::new(&r);
 
         if let Some(target_cpgs) = target_cpgs {
