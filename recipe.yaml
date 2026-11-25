@@ -6,13 +6,12 @@ package:
   version: ${{ version }}
 
 source:
-  git: https://github.com/dohlee/metheor
-  tag: v${{ version }}
+  path: .
 
 build:
   number: 0
   script:
-    - cargo install --no-track --verbose --root $PREFIX --path .
+    - cargo install --locked --no-track --verbose --root $PREFIX --path .
 
 requirements:
   build:
