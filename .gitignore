@@ -3,3 +3,5 @@
 extract_pairs.py
 
 tests/*.tsv
+/output
+/test-build-output

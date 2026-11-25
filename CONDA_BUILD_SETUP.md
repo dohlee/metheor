@@ -88,6 +88,8 @@ The build system triggers on:
 - **Pull requests** to `master`/`dev` branches → **Test builds only**
 - **Manual dispatch** → **Test builds only**
 
+The recipe builds the local checkout with `Cargo.lock` enforced. Pull requests therefore test their changes, while tag-triggered releases build the checked-out tag. Local builds include local edits; commit the intended source before making a release.
+
 ## Troubleshooting
 
 ### Build fails on specific platform
